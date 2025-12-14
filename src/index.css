@@ -2,95 +2,124 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Poppins:wght@400;500;600;700;800&display=swap');
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --background: 180 20% 99%;
+    --foreground: 200 25% 10%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 200 25% 10%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 200 25% 10%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 168 76% 36%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 239 84% 67%;
+    --secondary-foreground: 0 0% 100%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 180 15% 95%;
+    --muted-foreground: 200 10% 45%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 180 40% 94%;
+    --accent-foreground: 168 76% 30%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 350 89% 60%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --success: 152 69% 45%;
+    --success-foreground: 0 0% 100%;
 
-    --radius: 0.5rem;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+
+    --border: 180 20% 90%;
+    --input: 180 20% 90%;
+    --ring: 168 76% 36%;
+
+    --radius: 0.75rem;
+
+    /* Custom VacciTrack tokens */
+    --medical-50: 166 76% 97%;
+    --medical-100: 167 85% 89%;
+    --medical-500: 168 76% 42%;
+    --medical-600: 168 76% 36%;
+    --medical-700: 168 76% 30%;
+
+    --indigo-500: 239 84% 67%;
+    --indigo-600: 239 84% 60%;
+
+    --rose-500: 350 89% 60%;
+    --rose-600: 350 89% 52%;
+
+    --amber-500: 38 92% 50%;
+    --amber-600: 32 95% 44%;
+
+    --gradient-medical: linear-gradient(135deg, hsl(168 76% 36%) 0%, hsl(180 60% 45%) 100%);
+    --gradient-hero: linear-gradient(135deg, hsl(168 76% 36%) 0%, hsl(239 84% 67%) 100%);
+    --gradient-card: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(180 20% 98%) 100%);
+    --gradient-success: linear-gradient(135deg, hsl(152 69% 45%) 0%, hsl(160 60% 50%) 100%);
+
+    --shadow-medical: 0 10px 40px -10px hsl(168 76% 36% / 0.25);
+    --shadow-card: 0 4px 20px -4px hsl(200 25% 10% / 0.08);
+    --shadow-glow: 0 0 40px hsl(168 76% 36% / 0.3);
 
     --sidebar-background: 0 0% 98%;
-
     --sidebar-foreground: 240 5.3% 26.1%;
-
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-primary: 168 76% 36%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 180 40% 94%;
+    --sidebar-accent-foreground: 168 76% 30%;
+    --sidebar-border: 180 20% 90%;
+    --sidebar-ring: 168 76% 36%;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    --background: 200 25% 8%;
+    --foreground: 180 20% 98%;
 
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
+    --card: 200 25% 12%;
+    --card-foreground: 180 20% 98%;
 
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 200 25% 12%;
+    --popover-foreground: 180 20% 98%;
 
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    --primary: 168 70% 50%;
+    --primary-foreground: 200 25% 8%;
 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 239 70% 70%;
+    --secondary-foreground: 200 25% 8%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 200 20% 18%;
+    --muted-foreground: 180 10% 65%;
 
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 200 20% 18%;
+    --accent-foreground: 168 70% 50%;
 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 350 70% 50%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --success: 152 60% 50%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 80% 55%;
+    --warning-foreground: 0 0% 100%;
+
+    --border: 200 20% 20%;
+    --input: 200 20% 20%;
+    --ring: 168 70% 50%;
+
+    --sidebar-background: 200 25% 10%;
+    --sidebar-foreground: 180 20% 98%;
+    --sidebar-primary: 168 70% 50%;
+    --sidebar-primary-foreground: 200 25% 8%;
+    --sidebar-accent: 200 20% 18%;
+    --sidebar-accent-foreground: 168 70% 50%;
+    --sidebar-border: 200 20% 20%;
+    --sidebar-ring: 168 70% 50%;
   }
 }
 
@@ -100,6 +129,114 @@ All colors MUST be HSL.
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: 'Inter', sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Poppins', sans-serif;
+  }
+}
+
+@layer components {
+  .card-medical {
+    @apply bg-card rounded-xl border border-border/50 shadow-[var(--shadow-card)] transition-all duration-300;
+  }
+
+  .card-medical:hover {
+    @apply shadow-[var(--shadow-medical)] border-primary/20;
+  }
+
+  .btn-medical {
+    @apply bg-primary text-primary-foreground font-semibold px-6 py-3 rounded-lg transition-all duration-300;
+    box-shadow: var(--shadow-medical);
+  }
+
+  .btn-medical:hover {
+    @apply scale-105;
+    box-shadow: var(--shadow-glow);
+  }
+
+  .gradient-text {
+    background: var(--gradient-hero);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .status-completed {
+    @apply bg-success/10 text-success border border-success/20;
+  }
+
+  .status-pending {
+    @apply bg-warning/10 text-warning border border-warning/20;
+  }
+
+  .status-overdue {
+    @apply bg-destructive/10 text-destructive border border-destructive/20;
+  }
+
+  .status-upcoming {
+    @apply bg-muted text-muted-foreground border border-border;
+  }
+
+  .timeline-line {
+    @apply absolute left-6 top-0 bottom-0 w-0.5 bg-gradient-to-b from-primary via-primary/50 to-border;
+  }
+
+  .pulse-dot {
+    @apply relative;
+  }
+
+  .pulse-dot::after {
+    content: '';
+    @apply absolute inset-0 rounded-full bg-warning/50 animate-ping;
+  }
+
+  .glass-card {
+    @apply bg-white/80 backdrop-blur-xl border border-white/20;
+  }
+}
+
+@layer utilities {
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+
+  .animate-pulse-slow {
+    animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  .animate-shake {
+    animation: shake 0.5s ease-in-out;
+  }
+
+  .animate-confetti {
+    animation: confetti 1s ease-out forwards;
+  }
+
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+  }
+
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    75% { transform: translateX(5px); }
+  }
+
+  @keyframes confetti {
+    0% { transform: scale(0) rotate(0deg); opacity: 1; }
+    100% { transform: scale(1) rotate(360deg); opacity: 0; }
+  }
+
+  @keyframes slide-up {
+    0% { transform: translateY(20px); opacity: 0; }
+    100% { transform: translateY(0); opacity: 1; }
+  }
+
+  .animate-slide-up {
+    animation: slide-up 0.5s ease-out forwards;
   }
 }
