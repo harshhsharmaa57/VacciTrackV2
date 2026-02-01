@@ -8,6 +8,7 @@ import ChildCard from '@/components/ChildCard';
 import StatsCard from '@/components/StatsCard';
 import VaccineTimeline from '@/components/VaccineTimeline';
 import ConfettiExplosion from '@/components/ConfettiExplosion';
+import AddChildForm from '@/components/AddChildForm';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
 import { childRepository, Child } from '@/lib/dataStore';
@@ -21,14 +22,21 @@ const DoctorDashboard: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedChild, setSelectedChild] = useState<Child | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  // Get all children (doctors can see all)
+  // Get all children (doctors can see all) - refreshKey triggers re-render
   const allChildren = childRepository.findAll();
 
   // Filter by search
   const filteredChildren = searchQuery
     ? childRepository.searchByName(searchQuery)
     : allChildren;
+
+  const handleChildRegistered = () => {
+    // Force refresh the child list
+    setRefreshKey(prev => prev + 1);
+    setShowConfetti(true);
+  };
 
   // Calculate aggregate stats
   const totalStats = allChildren.reduce(
@@ -74,13 +82,16 @@ const DoctorDashboard: React.FC = () => {
           animate={{ opacity: 1, y: 0 }}
           className="mb-8"
         >
-          <div className="flex items-center gap-3 mb-2">
-            <h1 className="font-display font-bold text-3xl text-foreground">
-              Healthcare Provider Portal
-            </h1>
-            <span className="px-3 py-1 rounded-full bg-secondary/10 text-secondary text-sm font-medium">
-              Doctor
-            </span>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-3">
+              <h1 className="font-display font-bold text-3xl text-foreground">
+                Healthcare Provider Portal
+              </h1>
+              <span className="px-3 py-1 rounded-full bg-secondary/10 text-secondary text-sm font-medium">
+                Doctor
+              </span>
+            </div>
+            <AddChildForm onSuccess={handleChildRegistered} />
           </div>
           <div className="flex items-center gap-2 text-muted-foreground">
             <Building2 className="w-4 h-4" />

@@ -254,11 +254,237 @@ Custom medical-themed design with semantic tokens:
 
 ---
 
+## 🗄️ Supabase Integration Guide
+
+To migrate from in-memory storage to persistent Supabase database:
+
+### Step 1: Create Supabase Project
+
+1. Go to [supabase.com](https://supabase.com) and create a new project
+2. Note your **Project URL** and **Anon Key** from Settings → API
+
+### Step 2: Database Schema
+
+Run these SQL migrations in Supabase SQL Editor:
+
+```sql
+-- Enable UUID extension
+create extension if not exists "uuid-ossp";
+
+-- Create enum for user roles
+create type public.app_role as enum ('parent', 'doctor');
+
+-- Create enum for gender
+create type public.gender_type as enum ('male', 'female');
+
+-- Create enum for vaccine status
+create type public.vaccine_status as enum ('COMPLETED', 'PENDING', 'OVERDUE', 'UPCOMING');
+
+-- Users table (extends auth.users)
+create table public.profiles (
+  id uuid references auth.users(id) on delete cascade primary key,
+  email text not null,
+  name text not null,
+  phone text,
+  hospital_name text,
+  created_at timestamp with time zone default now()
+);
+
+-- User roles table (separate for security)
+create table public.user_roles (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users(id) on delete cascade not null,
+  role app_role not null,
+  unique (user_id, role)
+);
+
+-- Children table
+create table public.children (
+  id uuid primary key default gen_random_uuid(),
+  parent_id uuid references auth.users(id) on delete cascade not null,
+  name text not null,
+  date_of_birth date not null,
+  gender gender_type not null,
+  abha_id text unique not null,
+  created_at timestamp with time zone default now()
+);
+
+-- Vaccination schedule table
+create table public.vaccination_schedule (
+  id uuid primary key default gen_random_uuid(),
+  child_id uuid references public.children(id) on delete cascade not null,
+  vaccine_id text not null,
+  vaccine_name text not null,
+  vaccine_type text not null,
+  description text,
+  due_date date not null,
+  status vaccine_status default 'UPCOMING',
+  administered_date date,
+  created_at timestamp with time zone default now()
+);
+
+-- Enable RLS
+alter table public.profiles enable row level security;
+alter table public.user_roles enable row level security;
+alter table public.children enable row level security;
+alter table public.vaccination_schedule enable row level security;
+
+-- Security definer function for role checking
+create or replace function public.has_role(_user_id uuid, _role app_role)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.user_roles
+    where user_id = _user_id
+      and role = _role
+  )
+$$;
+
+-- RLS Policies
+
+-- Profiles: Users can read their own, doctors can read all
+create policy "Users can view own profile"
+  on public.profiles for select
+  using (auth.uid() = id);
+
+create policy "Doctors can view all profiles"
+  on public.profiles for select
+  using (public.has_role(auth.uid(), 'doctor'));
+
+create policy "Users can update own profile"
+  on public.profiles for update
+  using (auth.uid() = id);
+
+-- Children: Parents see their children, doctors see all
+create policy "Parents can view own children"
+  on public.children for select
+  using (auth.uid() = parent_id);
+
+create policy "Doctors can view all children"
+  on public.children for select
+  using (public.has_role(auth.uid(), 'doctor'));
+
+create policy "Parents can insert own children"
+  on public.children for insert
+  with check (auth.uid() = parent_id);
+
+create policy "Doctors can insert children"
+  on public.children for insert
+  with check (public.has_role(auth.uid(), 'doctor'));
+
+-- Vaccination Schedule
+create policy "Parents can view own children schedules"
+  on public.vaccination_schedule for select
+  using (
+    exists (
+      select 1 from public.children
+      where children.id = vaccination_schedule.child_id
+        and children.parent_id = auth.uid()
+    )
+  );
+
+create policy "Doctors can view all schedules"
+  on public.vaccination_schedule for select
+  using (public.has_role(auth.uid(), 'doctor'));
+
+create policy "Doctors can update schedules"
+  on public.vaccination_schedule for update
+  using (public.has_role(auth.uid(), 'doctor'));
+
+-- User roles: Only viewable by owner
+create policy "Users can view own roles"
+  on public.user_roles for select
+  using (auth.uid() = user_id);
+
+-- Function to create user profile on signup
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  insert into public.profiles (id, email, name)
+  values (new.id, new.email, coalesce(new.raw_user_meta_data->>'name', 'User'));
+  
+  -- Default role is parent
+  insert into public.user_roles (user_id, role)
+  values (new.id, 'parent');
+  
+  return new;
+end;
+$$;
+
+-- Trigger for new user creation
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute procedure public.handle_new_user();
+```
+
+### Step 3: Environment Variables
+
+Create a `.env` file with your Supabase credentials:
+
+```env
+VITE_SUPABASE_URL=https://your-project-id.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key-here
+```
+
+### Step 4: Install Supabase Client
+
+```bash
+npm install @supabase/supabase-js
+```
+
+### Step 5: Create Supabase Client
+
+Create `src/lib/supabase.ts`:
+
+```typescript
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+```
+
+### Step 6: Update AuthContext
+
+Replace the in-memory auth with Supabase auth:
+
+```typescript
+// In AuthContext.tsx, replace userRepository calls with:
+const { data, error } = await supabase.auth.signInWithPassword({
+  email,
+  password,
+});
+```
+
+### Step 7: Update Data Repositories
+
+Replace `dataStore.ts` methods with Supabase queries:
+
+```typescript
+// Example: Fetch children
+const { data: children } = await supabase
+  .from('children')
+  .select('*, vaccination_schedule(*)')
+  .eq('parent_id', userId);
+```
+
+---
+
 ## 📊 Hackathon Winning Features
 
 | Feature | Implementation | Why It Wins |
 |---------|---------------|-------------|
 | Data Store | In-Memory Arrays (Repository Pattern) | Zero latency, no connection failures |
+| Doctor Registration | Full child + parent creation flow | Complete workflow demonstration |
 | UI | Tailwind + Framer Motion | Premium animations, "visually appealing" |
 | Notifications | Console Log + Visual Alerts | Demonstrates logic without SMS costs |
 | Logic | Custom NIS 2025 Algorithm | Deep domain understanding |
