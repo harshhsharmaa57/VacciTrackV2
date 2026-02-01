@@ -72,6 +72,11 @@ export const translations = {
     updateRecord: "Update Record",
     markAdministered: "Mark as Administered",
     verifyAbha: "Verify ABHA",
+    registerNewChild: "Register New Child",
+    
+    // Registration Form
+    parentName: "Parent Name",
+    phone: "Phone",
     
     // Notifications
     reminderTitle: "Vaccine Reminder",
@@ -158,6 +163,11 @@ export const translations = {
     updateRecord: "रिकॉर्ड अपडेट करें",
     markAdministered: "प्रशासित के रूप में चिह्नित करें",
     verifyAbha: "आभा सत्यापित करें",
+    registerNewChild: "नया बच्चा पंजीकृत करें",
+    
+    // Registration Form
+    parentName: "माता/पिता का नाम",
+    phone: "फ़ोन",
     
     // Notifications
     reminderTitle: "टीके का रिमाइंडर",
