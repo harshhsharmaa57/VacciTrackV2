@@ -86,41 +86,8 @@ cd vaccitrack
 npm install
 ```
 
-### 3. Environment Configuration
-Create a `.env` file in the root directory:
-```env
-# VacciTrack Environment Configuration
-# =====================================
 
-# Application Settings
-VITE_APP_NAME=VacciTrack
-VITE_APP_VERSION=1.0.0
-
-# API Configuration (for future backend integration)
-VITE_API_URL=http://localhost:5000/api
-VITE_API_TIMEOUT=30000
-
-# Authentication
-VITE_JWT_SECRET=vaccitrack_super_secret_hackathon_key_2025
-VITE_JWT_EXPIRY=7d
-
-# Feature Flags
-VITE_ENABLE_SMS_NOTIFICATIONS=false
-VITE_ENABLE_PUSH_NOTIFICATIONS=false
-VITE_ENABLE_OFFLINE_MODE=true
-
-# Demo Mode
-VITE_DEMO_MODE=true
-
-# Analytics (optional)
-VITE_ANALYTICS_ID=
-
-# Supabase (for future integration)
-VITE_SUPABASE_URL=
-VITE_SUPABASE_ANON_KEY=
-```
-
-### 4. Start Development Server
+### 3. Start Development Server
 ```bash
 npm run dev
 ```
