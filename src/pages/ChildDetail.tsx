@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Calendar, CreditCard, Download, Share2 } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -7,16 +7,70 @@ import Navbar from '@/components/Navbar';
 import VaccineTimeline from '@/components/VaccineTimeline';
 import ShieldBadge from '@/components/ShieldBadge';
 import { useLanguage } from '@/context/LanguageContext';
-import { childRepository } from '@/lib/dataStore';
+import { childrenAPI } from '@/lib/api';
 import { MASTER_VACCINE_SCHEDULE } from '@/lib/vaccineSchedule';
 import { cn } from '@/lib/utils';
+
+interface Child {
+  _id?: string;
+  id?: string;
+  name: string;
+  dateOfBirth: Date | string;
+  gender: 'male' | 'female';
+  abhaId: string;
+  schedule: any[];
+}
 
 const ChildDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { t } = useLanguage();
+  const [child, setChild] = useState<Child | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const child = id ? childRepository.findById(id) : undefined;
+  useEffect(() => {
+    const fetchChild = async () => {
+      if (!id) {
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        setIsLoading(true);
+        const childData = await childrenAPI.getById(id);
+        // Normalize child data
+        const normalizedChild = {
+          ...childData,
+          id: childData._id || childData.id,
+          dateOfBirth: new Date(childData.dateOfBirth),
+          schedule: childData.schedule.map((v: any) => ({
+            ...v,
+            dueDate: new Date(v.dueDate),
+            administeredDate: v.administeredDate ? new Date(v.administeredDate) : undefined,
+          })),
+        };
+        setChild(normalizedChild);
+      } catch (error: any) {
+        console.error('Failed to load child:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchChild();
+  }, [id]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <div className="max-w-7xl mx-auto px-4 py-16 text-center">
+          <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading child details...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!child) {
     return (

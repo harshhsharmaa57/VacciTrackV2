@@ -2,7 +2,17 @@ import React from 'react';
 import { format, differenceInMonths, differenceInYears, differenceInDays } from 'date-fns';
 import { User, Calendar, CreditCard, ChevronRight } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { Child } from '@/lib/dataStore';
+interface Child {
+  _id?: string;
+  id?: string;
+  parentId: string | { _id: string; name: string; email: string; phone?: string };
+  name: string;
+  dateOfBirth: Date | string;
+  gender: 'male' | 'female';
+  abhaId: string;
+  schedule: any[];
+  createdAt?: Date | string;
+}
 import { MASTER_VACCINE_SCHEDULE } from '@/lib/vaccineSchedule';
 import ShieldBadge from './ShieldBadge';
 import { cn } from '@/lib/utils';
@@ -19,14 +29,15 @@ const ChildCard: React.FC<ChildCardProps> = ({ child, onClick, compact }) => {
   const pendingCount = child.schedule.filter(v => v.status === 'PENDING').length;
   const totalCount = MASTER_VACCINE_SCHEDULE.length;
 
-  const getAge = (dob: Date) => {
-    const years = differenceInYears(new Date(), dob);
+  const getAge = (dob: Date | string) => {
+    const dobDate = dob instanceof Date ? dob : new Date(dob);
+    const years = differenceInYears(new Date(), dobDate);
     if (years >= 1) return `${years} year${years > 1 ? 's' : ''} old`;
     
-    const months = differenceInMonths(new Date(), dob);
+    const months = differenceInMonths(new Date(), dobDate);
     if (months >= 1) return `${months} month${months > 1 ? 's' : ''} old`;
     
-    const days = differenceInDays(new Date(), dob);
+    const days = differenceInDays(new Date(), dobDate);
     return `${days} day${days > 1 ? 's' : ''} old`;
   };
 

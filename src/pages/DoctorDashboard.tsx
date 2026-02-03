@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Users, Syringe, CheckCircle, AlertTriangle, Clock, Building2 } from 'lucide-react';
+import { Search, Users, Syringe, CheckCircle, AlertTriangle, Clock, Building2, Pencil, Trash2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { format } from 'date-fns';
 import Navbar from '@/components/Navbar';
@@ -11,9 +11,21 @@ import ConfettiExplosion from '@/components/ConfettiExplosion';
 import AddChildForm from '@/components/AddChildForm';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
-import { childRepository, Child } from '@/lib/dataStore';
+import { childrenAPI } from '@/lib/api';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
+
+interface Child {
+  _id?: string;
+  id?: string;
+  parentId: string | { _id: string; name: string; email: string; phone?: string };
+  name: string;
+  dateOfBirth: Date | string;
+  gender: 'male' | 'female';
+  abhaId: string;
+  schedule: any[];
+  createdAt?: Date | string;
+}
 
 const DoctorDashboard: React.FC = () => {
   const { user } = useAuth();
@@ -22,20 +34,123 @@ const DoctorDashboard: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedChild, setSelectedChild] = useState<Child | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
-  const [refreshKey, setRefreshKey] = useState(0);
+  const [allChildren, setAllChildren] = useState<Child[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState({
+    name: '',
+    dateOfBirth: '',
+    gender: 'male' as 'male' | 'female',
+  });
 
-  // Get all children (doctors can see all) - refreshKey triggers re-render
-  const allChildren = childRepository.findAll();
+  // Fetch all children from API
+  useEffect(() => {
+    const fetchChildren = async () => {
+      try {
+        setIsLoading(true);
+        const data = await childrenAPI.getAll();
+        // Normalize children data
+        const normalizedChildren = data.map((child: any) => ({
+          ...child,
+          id: child._id || child.id,
+          dateOfBirth: new Date(child.dateOfBirth),
+          schedule: child.schedule.map((v: any) => ({
+            ...v,
+            dueDate: new Date(v.dueDate),
+            administeredDate: v.administeredDate ? new Date(v.administeredDate) : undefined,
+          })),
+        }));
+        setAllChildren(normalizedChildren);
+      } catch (error: any) {
+        toast.error('Failed to load children', {
+          description: error.message || 'An error occurred',
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-  // Filter by search
+    fetchChildren();
+  }, []);
+
+  // Search children
+  useEffect(() => {
+    const searchChildren = async () => {
+      if (!searchQuery.trim()) {
+        // If search is empty, fetch all
+        const data = await childrenAPI.getAll();
+        const normalizedChildren = data.map((child: any) => ({
+          ...child,
+          id: child._id || child.id,
+          dateOfBirth: new Date(child.dateOfBirth),
+          schedule: child.schedule.map((v: any) => ({
+            ...v,
+            dueDate: new Date(v.dueDate),
+            administeredDate: v.administeredDate ? new Date(v.administeredDate) : undefined,
+          })),
+        }));
+        setAllChildren(normalizedChildren);
+        return;
+      }
+
+      try {
+        setIsLoading(true);
+        const data = await childrenAPI.search(searchQuery);
+        const normalizedChildren = data.map((child: any) => ({
+          ...child,
+          id: child._id || child.id,
+          dateOfBirth: new Date(child.dateOfBirth),
+          schedule: child.schedule.map((v: any) => ({
+            ...v,
+            dueDate: new Date(v.dueDate),
+            administeredDate: v.administeredDate ? new Date(v.administeredDate) : undefined,
+          })),
+        }));
+        setAllChildren(normalizedChildren);
+      } catch (error: any) {
+        toast.error('Search failed', {
+          description: error.message || 'An error occurred',
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    const debounceTimer = setTimeout(searchChildren, 300);
+    return () => clearTimeout(debounceTimer);
+  }, [searchQuery]);
+
+  // Filter by search (client-side filtering for instant feedback)
   const filteredChildren = searchQuery
-    ? childRepository.searchByName(searchQuery)
+    ? allChildren.filter((child) =>
+        child.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        child.abhaId.includes(searchQuery)
+      )
     : allChildren;
 
-  const handleChildRegistered = () => {
-    // Force refresh the child list
-    setRefreshKey(prev => prev + 1);
-    setShowConfetti(true);
+  const handleChildRegistered = async () => {
+    // Refresh the child list
+    try {
+      const data = await childrenAPI.getAll();
+      const normalizedChildren = data.map((child: any) => ({
+        ...child,
+        id: child._id || child.id,
+        dateOfBirth: new Date(child.dateOfBirth),
+        schedule: child.schedule.map((v: any) => ({
+          ...v,
+          dueDate: new Date(v.dueDate),
+          administeredDate: v.administeredDate ? new Date(v.administeredDate) : undefined,
+        })),
+      }));
+      setAllChildren(normalizedChildren);
+      setShowConfetti(true);
+    } catch (error: any) {
+      toast.error('Failed to refresh children', {
+        description: error.message || 'An error occurred',
+      });
+    }
   };
 
   // Calculate aggregate stats
@@ -51,23 +166,136 @@ const DoctorDashboard: React.FC = () => {
     { completed: 0, pending: 0, overdue: 0 }
   );
 
-  const handleAdminister = (vaccineId: string) => {
+  const handleAdminister = async (vaccineId: string) => {
     if (!selectedChild) return;
 
-    childRepository.updateVaccineStatus(selectedChild.id, vaccineId, 'COMPLETED');
+    try {
+      const childId = selectedChild.id || selectedChild._id;
+      if (!childId) return;
 
-    // Refresh the selected child data
-    const updatedChild = childRepository.findById(selectedChild.id);
-    if (updatedChild) {
+      const updatedChildData = await childrenAPI.updateVaccineStatus(
+        childId,
+        vaccineId,
+        new Date()
+      );
+
+      // Normalize updated child data
+      const updatedChild = {
+        ...updatedChildData,
+        id: updatedChildData._id || updatedChildData.id,
+        dateOfBirth: new Date(updatedChildData.dateOfBirth),
+        schedule: updatedChildData.schedule.map((v: any) => ({
+          ...v,
+          dueDate: new Date(v.dueDate),
+          administeredDate: v.administeredDate ? new Date(v.administeredDate) : undefined,
+        })),
+      };
+
       setSelectedChild(updatedChild);
+
+      // Update in allChildren array
+      setAllChildren((prev) =>
+        prev.map((child) => (child.id === childId ? updatedChild : child))
+      );
+
+      // Show confetti
+      setShowConfetti(true);
+
+      toast.success(t('congratulations'), {
+        description: t('vaccineCompleted'),
+      });
+    } catch (error: any) {
+      toast.error('Failed to update vaccine status', {
+        description: error.message || 'An error occurred',
+      });
     }
+  };
 
-    // Show confetti
-    setShowConfetti(true);
+  // Sync edit form when a child is selected
+  React.useEffect(() => {
+    if (selectedChild) {
+      setEditForm({
+        name: selectedChild.name,
+        dateOfBirth: new Date(selectedChild.dateOfBirth).toISOString().split('T')[0],
+        gender: selectedChild.gender,
+      });
+      setIsEditing(false);
+    }
+  }, [selectedChild]);
 
-    toast.success(t('congratulations'), {
-      description: t('vaccineCompleted'),
-    });
+  const handleUpdateChild = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedChild) return;
+
+    try {
+      setIsSaving(true);
+      const childId = selectedChild.id || selectedChild._id;
+      if (!childId) return;
+
+      const updatedChildData = await childrenAPI.update(childId, {
+        name: editForm.name,
+        dateOfBirth: editForm.dateOfBirth,
+        gender: editForm.gender,
+      });
+
+      const updatedChild: Child = {
+        ...updatedChildData,
+        id: updatedChildData._id || updatedChildData.id,
+        dateOfBirth: new Date(updatedChildData.dateOfBirth),
+        schedule: updatedChildData.schedule.map((v: any) => ({
+          ...v,
+          dueDate: new Date(v.dueDate),
+          administeredDate: v.administeredDate ? new Date(v.administeredDate) : undefined,
+        })),
+      };
+
+      setSelectedChild(updatedChild);
+      setAllChildren((prev) =>
+        prev.map((child) => (child.id === childId ? updatedChild : child))
+      );
+
+      setIsEditing(false);
+
+      toast.success('Child details updated', {
+        description: `${updatedChild.name}'s profile has been updated.`,
+      });
+    } catch (error: any) {
+      toast.error('Failed to update child', {
+        description: error.message || 'An error occurred',
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDeleteChild = async () => {
+    if (!selectedChild) return;
+
+    const confirmed = window.confirm(
+      `Are you sure you want to delete the record for ${selectedChild.name}? This action cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    try {
+      setIsDeleting(true);
+      const childId = selectedChild.id || selectedChild._id;
+      if (!childId) return;
+
+      await childrenAPI.remove(childId);
+
+      setAllChildren((prev) => prev.filter((child) => child.id !== childId));
+      setSelectedChild(null);
+
+      toast.success('Child deleted', {
+        description: 'The patient record has been removed from your panel.',
+      });
+    } catch (error: any) {
+      toast.error('Failed to delete child', {
+        description: error.message || 'An error occurred',
+      });
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   return (
@@ -235,25 +463,116 @@ const DoctorDashboard: React.FC = () => {
           {selectedChild && (
             <div className="mt-4">
               {/* Patient Info */}
-              <div className="card-medical p-4 mb-6">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                  <div>
-                    <p className="text-muted-foreground">Name</p>
-                    <p className="font-semibold">{selectedChild.name}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">DOB</p>
-                    <p className="font-semibold">{format(selectedChild.dateOfBirth, 'dd MMM yyyy')}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Gender</p>
-                    <p className="font-semibold capitalize">{selectedChild.gender}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">ABHA ID</p>
-                    <p className="font-mono text-xs">{selectedChild.abhaId}</p>
+              <div className="card-medical p-4 mb-6 space-y-4">
+                {/* Action buttons */}
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div className="flex flex-wrap gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setIsEditing((prev) => !prev)}
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition"
+                    >
+                      <Pencil className="w-4 h-4" />
+                      {isEditing ? 'Cancel edit' : 'Edit details'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleDeleteChild}
+                      disabled={isDeleting}
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-destructive/30 text-destructive text-sm font-medium hover:bg-destructive/5 transition disabled:opacity-60"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      {isDeleting ? 'Deleting...' : 'Delete patient'}
+                    </button>
                   </div>
                 </div>
+
+                {/* Details / Edit form */}
+                {isEditing ? (
+                  <form onSubmit={handleUpdateChild} className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
+                    <div className="space-y-1">
+                      <p className="text-muted-foreground text-xs">Name</p>
+                      <input
+                        type="text"
+                        value={editForm.name}
+                        onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                        className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-muted-foreground text-xs">DOB</p>
+                      <input
+                        type="date"
+                        value={editForm.dateOfBirth}
+                        onChange={(e) => setEditForm({ ...editForm, dateOfBirth: e.target.value })}
+                        className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-muted-foreground text-xs">Gender</p>
+                      <div className="flex gap-3 mt-1">
+                        <label className="flex items-center gap-2 text-sm cursor-pointer">
+                          <input
+                            type="radio"
+                            value="male"
+                            checked={editForm.gender === 'male'}
+                            onChange={() => setEditForm({ ...editForm, gender: 'male' })}
+                            className="w-4 h-4 text-primary"
+                          />
+                          <span>Male</span>
+                        </label>
+                        <label className="flex items-center gap-2 text-sm cursor-pointer">
+                          <input
+                            type="radio"
+                            value="female"
+                            checked={editForm.gender === 'female'}
+                            onChange={() => setEditForm({ ...editForm, gender: 'female' })}
+                            className="w-4 h-4 text-primary"
+                          />
+                          <span>Female</span>
+                        </label>
+                      </div>
+                    </div>
+                    <div className="space-y-1 flex flex-col justify-between">
+                      <div>
+                        <p className="text-muted-foreground text-xs">ABHA ID</p>
+                        <p className="font-mono text-xs break-all mt-1">{selectedChild.abhaId}</p>
+                      </div>
+                      <div className="flex justify-end mt-3 md:mt-0">
+                        <button
+                          type="submit"
+                          disabled={isSaving}
+                          className="inline-flex items-center justify-center px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition disabled:opacity-60"
+                        >
+                          {isSaving ? 'Saving...' : 'Save changes'}
+                        </button>
+                      </div>
+                    </div>
+                  </form>
+                ) : (
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                    <div>
+                      <p className="text-muted-foreground">Name</p>
+                      <p className="font-semibold">{selectedChild.name}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">DOB</p>
+                      <p className="font-semibold">
+                        {format(selectedChild.dateOfBirth, 'dd MMM yyyy')}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Gender</p>
+                      <p className="font-semibold capitalize">{selectedChild.gender}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">ABHA ID</p>
+                      <p className="font-mono text-xs">{selectedChild.abhaId}</p>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Vaccination Timeline */}

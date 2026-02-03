@@ -21,7 +21,29 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { userRepository, childRepository, User, Child } from '@/lib/dataStore';
+import { authAPI, childrenAPI } from '@/lib/api';
+
+interface User {
+  _id?: string;
+  id?: string;
+  email: string;
+  name: string;
+  role: 'parent' | 'doctor';
+  phone?: string;
+  hospitalName?: string;
+}
+
+interface Child {
+  _id?: string;
+  id?: string;
+  parentId: string | { _id: string; name: string; email: string; phone?: string };
+  name: string;
+  dateOfBirth: Date | string;
+  gender: 'male' | 'female';
+  abhaId: string;
+  schedule: any[];
+  createdAt?: Date | string;
+}
 import { useLanguage } from '@/context/LanguageContext';
 import { toast } from 'sonner';
 
@@ -97,18 +119,8 @@ const AddChildForm: React.FC<AddChildFormProps> = ({ onSuccess }) => {
     setIsSubmitting(true);
 
     try {
-      // Check if email already exists
-      const existingUser = userRepository.findByEmail(data.parentEmail);
-      if (existingUser) {
-        toast.error('Registration Failed', {
-          description: 'A user with this email already exists.',
-        });
-        setIsSubmitting(false);
-        return;
-      }
-
-      // Create parent user
-      const newParent = userRepository.create({
+      // Create parent user via API
+      const parentResponse = await authAPI.register({
         email: data.parentEmail,
         password: data.parentPassword,
         name: data.parentName,
@@ -116,13 +128,38 @@ const AddChildForm: React.FC<AddChildFormProps> = ({ onSuccess }) => {
         phone: data.parentPhone,
       });
 
-      // Create child with vaccination schedule
-      const newChild = childRepository.create({
-        parentId: newParent.id,
+      if (!parentResponse.success) {
+        toast.error('Registration Failed', {
+          description: parentResponse.error || 'Failed to create parent account',
+        });
+        setIsSubmitting(false);
+        return;
+      }
+
+      const newParent = {
+        ...parentResponse.data.user,
+        id: parentResponse.data.user._id || parentResponse.data.user.id,
+      };
+
+      // Create child with vaccination schedule via API
+      const childResponse = await childrenAPI.create({
         name: data.childName,
-        dateOfBirth: new Date(data.childDob),
+        dateOfBirth: data.childDob,
         gender: data.childGender,
+        parentId: newParent.id,
       });
+
+      // Normalize child data
+      const newChild = {
+        ...childResponse,
+        id: childResponse._id || childResponse.id,
+        dateOfBirth: new Date(childResponse.dateOfBirth),
+        schedule: childResponse.schedule.map((v: any) => ({
+          ...v,
+          dueDate: new Date(v.dueDate),
+          administeredDate: v.administeredDate ? new Date(v.administeredDate) : undefined,
+        })),
+      };
 
       const result: RegistrationResult = {
         parent: newParent,
@@ -139,9 +176,9 @@ const AddChildForm: React.FC<AddChildFormProps> = ({ onSuccess }) => {
       toast.success('Registration Successful!', {
         description: `${data.childName} has been registered with a complete vaccination schedule.`,
       });
-    } catch (error) {
+    } catch (error: any) {
       toast.error('Registration Failed', {
-        description: 'An error occurred while registering. Please try again.',
+        description: error.message || 'An error occurred while registering. Please try again.',
       });
     } finally {
       setIsSubmitting(false);

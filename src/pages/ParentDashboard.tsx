@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Calendar, CheckCircle, AlertTriangle, Clock, Plus, Baby } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -8,24 +8,70 @@ import ChildCard from '@/components/ChildCard';
 import StatsCard from '@/components/StatsCard';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
-import { childRepository } from '@/lib/dataStore';
+import { childrenAPI } from '@/lib/api';
 import { MASTER_VACCINE_SCHEDULE } from '@/lib/vaccineSchedule';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from 'sonner';
+
+interface Child {
+  _id?: string;
+  id?: string;
+  parentId: string | { _id: string; name: string; email: string; phone?: string };
+  name: string;
+  dateOfBirth: Date | string;
+  gender: 'male' | 'female';
+  abhaId: string;
+  schedule: any[];
+  createdAt?: Date | string;
+}
 
 const ParentDashboard: React.FC = () => {
   const { user } = useAuth();
   const { t } = useLanguage();
   const navigate = useNavigate();
   const [isAddChildOpen, setIsAddChildOpen] = useState(false);
+  const [children, setChildren] = useState<Child[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [newChild, setNewChild] = useState({
     name: '',
     dateOfBirth: '',
     gender: 'male' as 'male' | 'female',
   });
 
-  // Get children for this parent
-  const children = user ? childRepository.findByParentId(user.id) : [];
+  // Fetch children from API
+  useEffect(() => {
+    const fetchChildren = async () => {
+      if (!user) {
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        setIsLoading(true);
+        const data = await childrenAPI.getAll();
+        // Normalize children data
+        const normalizedChildren = data.map((child: any) => ({
+          ...child,
+          id: child._id || child.id,
+          dateOfBirth: new Date(child.dateOfBirth),
+          schedule: child.schedule.map((v: any) => ({
+            ...v,
+            dueDate: new Date(v.dueDate),
+            administeredDate: v.administeredDate ? new Date(v.administeredDate) : undefined,
+          })),
+        }));
+        setChildren(normalizedChildren);
+      } catch (error: any) {
+        toast.error('Failed to load children', {
+          description: error.message || 'An error occurred',
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchChildren();
+  }, [user]);
 
   // Calculate aggregate stats
   const totalStats = children.reduce(
@@ -56,23 +102,41 @@ const ParentDashboard: React.FC = () => {
 
   const nextVaccine = getNextVaccine();
 
-  const handleAddChild = (e: React.FormEvent) => {
+  const handleAddChild = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
 
-    childRepository.create({
-      parentId: user.id,
-      name: newChild.name,
-      dateOfBirth: new Date(newChild.dateOfBirth),
-      gender: newChild.gender,
-    });
+    try {
+      const childData = await childrenAPI.create({
+        name: newChild.name,
+        dateOfBirth: newChild.dateOfBirth,
+        gender: newChild.gender,
+      });
 
-    toast.success('Child added successfully!', {
-      description: `${newChild.name} has been registered with their vaccination schedule.`,
-    });
+      // Normalize and add to local state
+      const normalizedChild = {
+        ...childData,
+        id: childData._id || childData.id,
+        dateOfBirth: new Date(childData.dateOfBirth),
+        schedule: childData.schedule.map((v: any) => ({
+          ...v,
+          dueDate: new Date(v.dueDate),
+          administeredDate: v.administeredDate ? new Date(v.administeredDate) : undefined,
+        })),
+      };
+      setChildren([...children, normalizedChild]);
 
-    setNewChild({ name: '', dateOfBirth: '', gender: 'male' });
-    setIsAddChildOpen(false);
+      toast.success('Child added successfully!', {
+        description: `${newChild.name} has been registered with their vaccination schedule.`,
+      });
+
+      setNewChild({ name: '', dateOfBirth: '', gender: 'male' });
+      setIsAddChildOpen(false);
+    } catch (error: any) {
+      toast.error('Failed to add child', {
+        description: error.message || 'An error occurred',
+      });
+    }
   };
 
   return (
@@ -264,7 +328,12 @@ const ParentDashboard: React.FC = () => {
             </Dialog>
           </div>
 
-          {children.length === 0 ? (
+          {isLoading ? (
+            <div className="card-medical p-12 text-center">
+              <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin mx-auto mb-4" />
+              <p className="text-muted-foreground">Loading children...</p>
+            </div>
+          ) : children.length === 0 ? (
             <div className="card-medical p-12 text-center">
               <Baby className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
               <h3 className="font-semibold text-lg text-foreground mb-2">No children registered</h3>
