@@ -146,7 +146,12 @@ export const childrenAPI = {
     const response = await apiRequest(`/children/${childId}`, {
       method: 'DELETE',
     });
-    return response.data || { success: true };
+    return {
+      success: response.success !== false,
+      parentDeleted: response.parentDeleted === true,
+      message: response.message || 'Child deleted successfully',
+      data: response.data,
+    };
   },
 
   updateVaccineStatus: async (childId, vaccineId, administeredDate) => {

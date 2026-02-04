@@ -1,6 +1,15 @@
 <!doctype html>
 <html lang="en">
   <head>
+    <script>
+      (function() {
+        const key = 'vaccitrack-theme';
+        const stored = localStorage.getItem(key);
+        const prefersDark = stored === 'dark' || (!stored && true);
+        if (prefersDark) document.documentElement.classList.add('dark');
+        else document.documentElement.classList.remove('dark');
+      })();
+    </script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>VacciTrack - Shield Your Child's Future | Immunization Management System</title>
@@ -11,13 +20,13 @@
     <meta property="og:title" content="VacciTrack - Shield Your Child's Future" />
     <meta property="og:description" content="A comprehensive immunization management system for tracking and managing children's vaccination schedules with NIS 2025 support." />
     <meta property="og:type" content="website" />
-    <meta property="og:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+    <meta property="og:image" content="/og-image.png" />
 
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:site" content="@VacciTrack" />
     <meta name="twitter:title" content="VacciTrack - Immunization Management System" />
     <meta name="twitter:description" content="Track your child's vaccinations with India's NIS 2025 schedule. Multilingual support & ABHA integration." />
-    <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+    <meta name="twitter:image" content="/og-image.png" />
 
     <link rel="canonical" href="https://vaccitrack.app" />
     <meta name="theme-color" content="#0d9488" />

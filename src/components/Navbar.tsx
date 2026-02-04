@@ -4,6 +4,7 @@ import { Shield, LogOut, Globe, User, Menu, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
+import ThemeToggle from '@/components/ThemeToggle';
 import { cn } from '@/lib/utils';
 
 const Navbar: React.FC = () => {
@@ -37,6 +38,8 @@ const Navbar: React.FC = () => {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-4">
+            {/* Theme Toggle */}
+            <ThemeToggle />
             {/* Language Toggle */}
             <button
               onClick={toggleLanguage}
@@ -92,6 +95,9 @@ const Navbar: React.FC = () => {
             className="md:hidden border-t border-border bg-card"
           >
             <div className="px-4 py-4 space-y-2">
+              <div className="flex items-center gap-2">
+                <ThemeToggle variant="with-label" className="flex-1 justify-start" />
+              </div>
               <button
                 onClick={toggleLanguage}
                 className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted"

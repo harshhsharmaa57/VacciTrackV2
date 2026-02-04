@@ -7,24 +7,18 @@ import rateLimit from 'express-rate-limit';
 import connectDB from './config/database.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
-// Import routes
 import authRoutes from './routes/auth.js';
 import userRoutes from './routes/users.js';
 import childRoutes from './routes/children.js';
 
-// Load env vars
 dotenv.config();
 
-// Connect to database
 connectDB();
 
-// Initialize Express
 const app = express();
 
-// Security middleware
 app.use(helmet());
 
-// CORS configuration - allow frontend origins (Vite uses 5173 or 8080)
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:8080',
@@ -50,16 +44,13 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 
-// Body parser
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Logging
 if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
 }
 
-// Rate limiting
 const limiter = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
   max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100, // limit each IP to 100 requests per windowMs
@@ -67,7 +58,6 @@ const limiter = rateLimit({
 });
 app.use('/api/', limiter);
 
-// Health check route
 app.get('/health', (req, res) => {
   res.json({
     success: true,
@@ -76,12 +66,10 @@ app.get('/health', (req, res) => {
   });
 });
 
-// API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/children', childRoutes);
 
-// 404 handler
 app.use((req, res) => {
   res.status(404).json({
     success: false,
@@ -89,17 +77,14 @@ app.use((req, res) => {
   });
 });
 
-// Error handler (must be last)
 app.use(errorHandler);
 
-// Start server
 const PORT = process.env.PORT || 5000;
 
 const server = app.listen(PORT, () => {
   console.log(`🚀 Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
 });
 
-// Handle unhandled promise rejections
 process.on('unhandledRejection', (err) => {
   console.error(`❌ Error: ${err.message}`);
   server.close(() => process.exit(1));

@@ -7,7 +7,9 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
-    "seed": "node src/scripts/seedDatabase.js"
+    "seed": "node src/scripts/seedDatabase.js",
+    "cleanup:orphan-parents": "node src/scripts/cleanupOrphanParents.js",
+    "cleanup:orphan-parents:dry": "node src/scripts/cleanupOrphanParents.js --dry-run"
   },
   "keywords": [
     "vaccination",

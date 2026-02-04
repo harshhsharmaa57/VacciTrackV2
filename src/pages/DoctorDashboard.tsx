@@ -281,14 +281,20 @@ const DoctorDashboard: React.FC = () => {
       const childId = selectedChild.id || selectedChild._id;
       if (!childId) return;
 
-      await childrenAPI.remove(childId);
+      const result = await childrenAPI.remove(childId);
 
       setAllChildren((prev) => prev.filter((child) => child.id !== childId));
       setSelectedChild(null);
 
-      toast.success('Child deleted', {
-        description: 'The patient record has been removed from your panel.',
-      });
+      if (result.parentDeleted) {
+        toast.success('Child deleted', {
+          description: 'The patient record has been removed. The parent account has also been deleted as it had no remaining children.',
+        });
+      } else {
+        toast.success('Child deleted', {
+          description: 'The patient record has been removed from your panel.',
+        });
+      }
     } catch (error: any) {
       toast.error('Failed to delete child', {
         description: error.message || 'An error occurred',

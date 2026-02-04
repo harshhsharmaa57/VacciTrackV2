@@ -4,6 +4,7 @@ import { Shield, Users, Stethoscope, ArrowRight, Eye, EyeOff } from 'lucide-reac
 import { motion } from 'framer-motion';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
+import ThemeToggle from '@/components/ThemeToggle';
 import { toast } from 'sonner';
 
 type PortalType = 'parent' | 'doctor' | null;
@@ -52,7 +53,11 @@ const Login: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-medical-50 to-background flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-background via-medical-50 dark:via-muted to-background flex items-center justify-center p-4">
+      {/* Theme Toggle - top right */}
+      <div className="fixed top-4 right-4 z-20">
+        <ThemeToggle />
+      </div>
       {/* Background Pattern */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-primary/5 rounded-full blur-3xl" />

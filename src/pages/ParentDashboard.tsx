@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Calendar, CheckCircle, AlertTriangle, Clock, Plus, Baby } from 'lucide-react';
+import { Calendar, CheckCircle, AlertTriangle, Clock, Plus, Baby, Trash2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { format, differenceInDays } from 'date-fns';
 import Navbar from '@/components/Navbar';
@@ -11,6 +11,7 @@ import { useLanguage } from '@/context/LanguageContext';
 import { childrenAPI } from '@/lib/api';
 import { MASTER_VACCINE_SCHEDULE } from '@/lib/vaccineSchedule';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
 
 interface Child {
@@ -26,12 +27,14 @@ interface Child {
 }
 
 const ParentDashboard: React.FC = () => {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const { t } = useLanguage();
   const navigate = useNavigate();
   const [isAddChildOpen, setIsAddChildOpen] = useState(false);
   const [children, setChildren] = useState<Child[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [childToDelete, setChildToDelete] = useState<Child | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [newChild, setNewChild] = useState({
     name: '',
     dateOfBirth: '',
@@ -136,6 +139,44 @@ const ParentDashboard: React.FC = () => {
       toast.error('Failed to add child', {
         description: error.message || 'An error occurred',
       });
+    }
+  };
+
+  const handleDeleteChild = async () => {
+    if (!childToDelete) return;
+
+    try {
+      setIsDeleting(true);
+      const childId = childToDelete.id || childToDelete._id;
+      if (!childId) return;
+
+      const result = await childrenAPI.remove(childId);
+
+      // Remove child from local state
+      setChildren((prev) => prev.filter((child) => child.id !== childId));
+      setChildToDelete(null);
+
+      // If parent account was deleted, logout and redirect
+      if (result.parentDeleted) {
+        toast.success('Child deleted', {
+          description: 'Your account has been deleted as you have no remaining children.',
+        });
+        // Small delay to show the toast
+        setTimeout(() => {
+          logout();
+          navigate('/');
+        }, 2000);
+      } else {
+        toast.success('Child deleted', {
+          description: `${childToDelete.name}'s record has been removed.`,
+        });
+      }
+    } catch (error: any) {
+      toast.error('Failed to delete child', {
+        description: error.message || 'An error occurred',
+      });
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -349,16 +390,54 @@ const ParentDashboard: React.FC = () => {
           ) : (
             <div className="grid md:grid-cols-2 gap-6">
               {children.map((child) => (
-                <ChildCard
-                  key={child.id}
-                  child={child}
-                  onClick={() => navigate(`/child/${child.id}`)}
-                />
+                <div key={child.id} className="relative group">
+                  <ChildCard
+                    child={child}
+                    onClick={() => navigate(`/child/${child.id}`)}
+                  />
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setChildToDelete(child);
+                    }}
+                    className="absolute top-4 right-4 p-2 rounded-lg bg-destructive/10 text-destructive opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive/20"
+                    title="Delete child"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               ))}
             </div>
           )}
         </motion.div>
       </main>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!childToDelete} onOpenChange={(open) => !open && setChildToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Child Record?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete {childToDelete?.name}'s record? This action cannot be undone.
+              {children.length === 1 && (
+                <span className="block mt-2 text-destructive font-medium">
+                  Warning: This is your only child. Deleting this record will also delete your account.
+                </span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteChild}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? 'Deleting...' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

@@ -3,22 +3,18 @@ import { body, validationResult } from 'express-validator';
 import { protect, authorize } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import Child from '../models/Child.js';
+import User from '../models/User.js';
 import { generateAbhaId } from '../utils/generateAbhaId.js';
 import { generateVaccineSchedule } from '../utils/vaccineSchedule.js';
 
 const router = express.Router();
 
-// @route   GET /api/children
-// @desc    Get all children (filtered by role)
-// @access  Private
 router.get('/', protect, asyncHandler(async (req, res) => {
   let query = {};
 
-  // Parents can only see their own children
   if (req.user.role === 'parent') {
     query.parentId = req.user._id;
   }
-  // Doctors can see all children
 
   const children = await Child.find(query).populate('parentId', 'name email phone').sort({ createdAt: -1 });
 
@@ -29,9 +25,6 @@ router.get('/', protect, asyncHandler(async (req, res) => {
   });
 }));
 
-// @route   GET /api/children/search
-// @desc    Search children by name or ABHA ID
-// @access  Private (Doctors only)
 router.get('/search', protect, authorize('doctor'), asyncHandler(async (req, res) => {
   const { q } = req.query;
 
@@ -56,9 +49,6 @@ router.get('/search', protect, authorize('doctor'), asyncHandler(async (req, res
   });
 }));
 
-// @route   GET /api/children/:id
-// @desc    Get single child by ID
-// @access  Private
 router.get('/:id', protect, asyncHandler(async (req, res) => {
   const child = await Child.findById(req.params.id).populate('parentId', 'name email phone');
 
@@ -69,7 +59,6 @@ router.get('/:id', protect, asyncHandler(async (req, res) => {
     });
   }
 
-  // Check access: Parents can only see their own children
   if (req.user.role === 'parent' && child.parentId._id.toString() !== req.user._id.toString()) {
     return res.status(403).json({
       success: false,
@@ -83,9 +72,6 @@ router.get('/:id', protect, asyncHandler(async (req, res) => {
   });
 }));
 
-// @route   POST /api/children
-// @desc    Create a new child
-// @access  Private
 router.post(
   '/',
   protect,
@@ -106,13 +92,11 @@ router.post(
 
     const { name, dateOfBirth, gender, parentId } = req.body;
 
-    // Determine parent ID
     let finalParentId = req.user._id;
     if (req.user.role === 'doctor' && parentId) {
       finalParentId = parentId;
     }
 
-    // Generate ABHA ID
     let abhaId = generateAbhaId();
     let abhaExists = await Child.findOne({ abhaId });
     while (abhaExists) {
@@ -120,11 +104,9 @@ router.post(
       abhaExists = await Child.findOne({ abhaId });
     }
 
-    // Generate vaccine schedule
     const dob = new Date(dateOfBirth);
     const schedule = generateVaccineSchedule(dob);
 
-    // Create child
     const child = await Child.create({
       parentId: finalParentId,
       name,
@@ -143,9 +125,6 @@ router.post(
   })
 );
 
-// @route   PATCH /api/children/:id
-// @desc    Update basic child details (name, DOB, gender)
-// @access  Private (Doctors only)
 router.patch(
   '/:id',
   protect,
@@ -203,17 +182,13 @@ router.patch(
   })
 );
 
-// @route   DELETE /api/children/:id
-// @desc    Delete a child record
-// @access  Private (Doctors only)
 router.delete(
   '/:id',
   protect,
-  authorize('doctor'),
   asyncHandler(async (req, res) => {
     const { id } = req.params;
 
-    const child = await Child.findById(id);
+    const child = await Child.findById(id).populate('parentId');
     if (!child) {
       return res.status(404).json({
         success: false,
@@ -221,18 +196,42 @@ router.delete(
       });
     }
 
+    if (req.user.role === 'parent') {
+      const parentId = typeof child.parentId === 'object' ? child.parentId._id.toString() : child.parentId.toString();
+      if (parentId !== req.user._id.toString()) {
+        return res.status(403).json({
+          success: false,
+          error: 'Not authorized to delete this child',
+        });
+      }
+    }
+
+    const parentId = typeof child.parentId === 'object' ? child.parentId._id : child.parentId;
+
     await child.deleteOne();
+
+    const remainingChildren = await Child.countDocuments({ parentId });
+
+    if (remainingChildren === 0) {
+      const parent = await User.findById(parentId);
+      if (parent && parent.role === 'parent') {
+        await parent.deleteOne();
+        return res.json({
+          success: true,
+          message: 'Child deleted successfully. Parent account has been deleted as it had no remaining children.',
+          parentDeleted: true,
+        });
+      }
+    }
 
     res.json({
       success: true,
       message: 'Child deleted successfully',
+      parentDeleted: false,
     });
   })
 );
 
-// @route   PUT /api/children/:id/vaccines/:vaccineId
-// @desc    Update vaccine status (mark as completed)
-// @access  Private (Doctors only)
 router.put(
   '/:id/vaccines/:vaccineId',
   protect,
@@ -261,7 +260,6 @@ router.put(
       });
     }
 
-    // Find the vaccine in schedule
     const vaccine = child.schedule.find((v) => v.vaccineId === vaccineId);
     if (!vaccine) {
       return res.status(404).json({
@@ -270,18 +268,14 @@ router.put(
       });
     }
 
-    // Update vaccine status
     vaccine.status = 'COMPLETED';
     vaccine.administeredDate = administeredDate ? new Date(administeredDate) : new Date();
 
-    // Save child
     await child.save();
 
-    // Recalculate status for other vaccines (in case of dependencies)
     const dob = child.dateOfBirth;
     child.schedule.forEach((v) => {
       if (v.vaccineId !== vaccineId && !v.administeredDate) {
-        // Recalculate status based on due date
         const today = new Date();
         const daysDiff = Math.floor((v.dueDate - today) / (1000 * 60 * 60 * 24));
         
