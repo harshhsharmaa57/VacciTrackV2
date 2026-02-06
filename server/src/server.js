@@ -35,6 +35,10 @@ const corsOptions = {
   origin: (origin, callback) => {
     // Allow requests with no origin (e.g. Postman, same-origin)
     if (!origin) return callback(null, true);
+    // log origin in development for debugging CORS issues
+    if (process.env.NODE_ENV !== "production") {
+      console.log("CORS request from origin:", origin);
+    }
     if (allowedOrigins.includes(origin)) return callback(null, true);
     // In development, allow any localhost
     if (
@@ -46,9 +50,12 @@ const corsOptions = {
     callback(null, false);
   },
   credentials: true,
+  allowedHeaders: ["Content-Type", "Authorization"],
   optionsSuccessStatus: 200,
 };
 app.use(cors(corsOptions));
+// Ensure preflight OPTIONS requests are handled
+app.options("*", cors(corsOptions));
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
