@@ -35,6 +35,18 @@ const corsOptions = {
   origin: (origin, callback) => {
     // Allow requests with no origin (e.g. Postman, same-origin)
     if (!origin) return callback(null, true);
+
+    // If explicitly allowed to accept all origins (temporary/testing), allow it
+    if (process.env.ALLOW_ALL_ORIGINS === "true") {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn(
+          "CORS: ALLOW_ALL_ORIGINS is enabled — allowing requests from",
+          origin,
+        );
+      }
+      return callback(null, true);
+    }
+
     // log origin in development for debugging CORS issues
     if (process.env.NODE_ENV !== "production") {
       console.log("CORS request from origin:", origin);
@@ -50,7 +62,13 @@ const corsOptions = {
     callback(null, false);
   },
   credentials: true,
-  allowedHeaders: ["Content-Type", "Authorization"],
+  // allow common headers including Authorization for cookies/JWT
+  allowedHeaders: [
+    "Content-Type",
+    "Authorization",
+    "X-Requested-With",
+    "Accept",
+  ],
   optionsSuccessStatus: 200,
 };
 app.use(cors(corsOptions));
