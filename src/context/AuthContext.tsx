@@ -9,6 +9,8 @@ export interface User {
   role: 'parent' | 'doctor';
   phone?: string;
   hospitalName?: string;
+  doctorId?: string;
+  specialization?: string;
 }
 
 interface AuthContextType {

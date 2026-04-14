@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Users, Syringe, CheckCircle, AlertTriangle, Clock, Building2, Pencil, Trash2 } from 'lucide-react';
+import { Search, Users, Syringe, CheckCircle, AlertTriangle, Clock, Building2, Pencil, Trash2, Phone } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { format } from 'date-fns';
 import Navbar from '@/components/Navbar';
@@ -9,9 +9,10 @@ import StatsCard from '@/components/StatsCard';
 import VaccineTimeline from '@/components/VaccineTimeline';
 import ConfettiExplosion from '@/components/ConfettiExplosion';
 import AddChildForm from '@/components/AddChildForm';
+import OtpVerificationDialog from '@/components/OtpVerificationDialog';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
-import { childrenAPI } from '@/lib/api';
+import { childrenAPI, usersAPI } from '@/lib/api';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 
@@ -23,12 +24,13 @@ interface Child {
   dateOfBirth: Date | string;
   gender: 'male' | 'female';
   abhaId: string;
+  parentPhone?: string;
   schedule: any[];
   createdAt?: Date | string;
 }
 
 const DoctorDashboard: React.FC = () => {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const { t } = useLanguage();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
@@ -38,12 +40,17 @@ const DoctorDashboard: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({
     name: '',
     dateOfBirth: '',
     gender: 'male' as 'male' | 'female',
   });
+
+  // OTP verification state
+  const [otpDialogOpen, setOtpDialogOpen] = useState(false);
+  const [otpTarget, setOtpTarget] = useState<{ vaccineId: string; vaccineName: string } | null>(null);
 
   // Fetch all children from API
   useEffect(() => {
@@ -166,49 +173,47 @@ const DoctorDashboard: React.FC = () => {
     { completed: 0, pending: 0, overdue: 0 }
   );
 
-  const handleAdminister = async (vaccineId: string) => {
+  // Initiate OTP flow when doctor clicks "Administer"
+  const handleAdminister = (vaccineId: string, vaccineName: string) => {
+    if (!selectedChild) return;
+    setOtpTarget({ vaccineId, vaccineName });
+    setOtpDialogOpen(true);
+  };
+
+  // Called when OTP verification succeeds
+  const handleOtpVerified = (updatedChildData: any) => {
     if (!selectedChild) return;
 
-    try {
-      const childId = selectedChild.id || selectedChild._id;
-      if (!childId) return;
+    const childId = selectedChild.id || selectedChild._id;
 
-      const updatedChildData = await childrenAPI.updateVaccineStatus(
-        childId,
-        vaccineId,
-        new Date()
-      );
+    // Normalize updated child data
+    const updatedChild: Child = {
+      ...updatedChildData,
+      id: updatedChildData._id || updatedChildData.id,
+      dateOfBirth: new Date(updatedChildData.dateOfBirth),
+      schedule: updatedChildData.schedule.map((v: any) => ({
+        ...v,
+        dueDate: new Date(v.dueDate),
+        administeredDate: v.administeredDate ? new Date(v.administeredDate) : undefined,
+      })),
+    };
 
-      // Normalize updated child data
-      const updatedChild = {
-        ...updatedChildData,
-        id: updatedChildData._id || updatedChildData.id,
-        dateOfBirth: new Date(updatedChildData.dateOfBirth),
-        schedule: updatedChildData.schedule.map((v: any) => ({
-          ...v,
-          dueDate: new Date(v.dueDate),
-          administeredDate: v.administeredDate ? new Date(v.administeredDate) : undefined,
-        })),
-      };
+    setSelectedChild(updatedChild);
 
-      setSelectedChild(updatedChild);
+    // Update in allChildren array
+    setAllChildren((prev) =>
+      prev.map((child) => (child.id === childId ? updatedChild : child))
+    );
 
-      // Update in allChildren array
-      setAllChildren((prev) =>
-        prev.map((child) => (child.id === childId ? updatedChild : child))
-      );
+    // Show confetti
+    setShowConfetti(true);
 
-      // Show confetti
-      setShowConfetti(true);
+    toast.success(t('congratulations'), {
+      description: t('vaccineCompleted'),
+    });
 
-      toast.success(t('congratulations'), {
-        description: t('vaccineCompleted'),
-      });
-    } catch (error: any) {
-      toast.error('Failed to update vaccine status', {
-        description: error.message || 'An error occurred',
-      });
-    }
+    // Clean up OTP state
+    setOtpTarget(null);
   };
 
   // Sync edit form when a child is selected
@@ -304,6 +309,31 @@ const DoctorDashboard: React.FC = () => {
     }
   };
 
+  const handleDeleteDoctorAccount = async () => {
+    const confirmed = window.confirm(
+      'Are you sure you want to delete your doctor account? This action cannot be undone.'
+    );
+    if (!confirmed) return;
+
+    try {
+      setIsDeletingAccount(true);
+      await usersAPI.deleteCurrentUser();
+
+      toast.success('Account deleted', {
+        description: 'Your doctor account has been deleted successfully.',
+      });
+
+      logout();
+      navigate('/');
+    } catch (error: any) {
+      toast.error('Failed to delete account', {
+        description: error.message || 'An error occurred',
+      });
+    } finally {
+      setIsDeletingAccount(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
@@ -325,12 +355,29 @@ const DoctorDashboard: React.FC = () => {
                 Doctor
               </span>
             </div>
-            <AddChildForm onSuccess={handleChildRegistered} />
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleDeleteDoctorAccount}
+                disabled={isDeletingAccount}
+                className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-destructive/30 text-destructive text-sm font-medium hover:bg-destructive/5 transition disabled:opacity-60"
+              >
+                <Trash2 className="w-4 h-4" />
+                {isDeletingAccount ? 'Deleting account...' : 'Delete Doctor'}
+              </button>
+              <AddChildForm onSuccess={handleChildRegistered} />
+            </div>
           </div>
           <div className="flex items-center gap-2 text-muted-foreground">
             <Building2 className="w-4 h-4" />
             <span>{user?.hospitalName || 'Healthcare Facility'}</span>
           </div>
+          {user?.doctorId && (
+            <div className="mt-2 inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-primary/20 bg-primary/5">
+              <span className="text-xs uppercase tracking-wide text-muted-foreground">Doctor ID</span>
+              <span className="font-mono text-sm font-semibold text-primary">{user.doctorId}</span>
+            </div>
+          )}
         </motion.div>
 
         {/* Stats Grid */}
@@ -579,6 +626,19 @@ const DoctorDashboard: React.FC = () => {
                     </div>
                   </div>
                 )}
+
+                {/* Parent Phone Display */}
+                <div className="flex items-center gap-2 pt-3 border-t border-border mt-3">
+                  <Phone className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">Parent Phone:</span>
+                  {selectedChild.parentPhone || (typeof selectedChild.parentId === 'object' && selectedChild.parentId.phone) ? (
+                    <span className="text-sm font-medium font-mono">
+                      {selectedChild.parentPhone || (typeof selectedChild.parentId === 'object' ? selectedChild.parentId.phone : '')}
+                    </span>
+                  ) : (
+                    <span className="text-sm text-warning">Not set — required for OTP verification</span>
+                  )}
+                </div>
               </div>
 
               {/* Vaccination Timeline */}
@@ -592,6 +652,19 @@ const DoctorDashboard: React.FC = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* OTP Verification Dialog */}
+      {selectedChild && otpTarget && (
+        <OtpVerificationDialog
+          open={otpDialogOpen}
+          onOpenChange={setOtpDialogOpen}
+          childId={selectedChild.id || selectedChild._id || ''}
+          vaccineId={otpTarget.vaccineId}
+          vaccineName={otpTarget.vaccineName}
+          childName={selectedChild.name}
+          onVerified={handleOtpVerified}
+        />
+      )}
     </div>
   );
 };

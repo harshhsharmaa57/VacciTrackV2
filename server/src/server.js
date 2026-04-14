@@ -10,6 +10,8 @@ import { errorHandler } from "./middleware/errorHandler.js";
 import authRoutes from "./routes/auth.js";
 import userRoutes from "./routes/users.js";
 import childRoutes from "./routes/children.js";
+import otpRoutes from "./routes/otp.js";
+import { assignAllChildrenToSampleDoctor } from "./utils/assignSampleDoctor.js";
 
 dotenv.config();
 
@@ -100,6 +102,7 @@ app.get("/health", (req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/children", childRoutes);
+app.use("/api/otp", otpRoutes);
 
 app.use((req, res) => {
   res.status(404).json({
@@ -117,6 +120,10 @@ const server = app.listen(PORT, HOST, () => {
   console.log(
     `🚀 Server running in ${process.env.NODE_ENV || "development"} mode on ${HOST}:${PORT}`,
   );
+
+  assignAllChildrenToSampleDoctor().catch((error) => {
+    console.error(`❌ Failed to assign sample doctor: ${error.message}`);
+  });
 });
 
 process.on("unhandledRejection", (err) => {

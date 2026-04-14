@@ -7,7 +7,7 @@ import { motion } from 'framer-motion';
 
 interface VaccineTimelineProps {
   schedule: ScheduledVaccine[];
-  onAdminister?: (vaccineId: string) => void;
+  onAdminister?: (vaccineId: string, vaccineName: string) => void;
   isDoctor?: boolean;
 }
 
@@ -143,7 +143,7 @@ const VaccineTimeline: React.FC<VaccineTimelineProps> = ({ schedule, onAdministe
 
                     {isDoctor && vaccine.status !== 'COMPLETED' && onAdminister && (
                       <button
-                        onClick={() => onAdminister(vaccine.vaccineId)}
+                        onClick={() => onAdminister(vaccine.vaccineId, vaccine.name)}
                         className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
                       >
                         <Syringe className="w-4 h-4" />

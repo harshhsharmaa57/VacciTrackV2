@@ -163,5 +163,50 @@ export const childrenAPI = {
     });
     return response.data;
   },
+
+  transferDoctor: async (childId, newDoctorId) => {
+    const response = await apiRequest(`/children/${childId}/transfer`, {
+      method: 'PATCH',
+      body: JSON.stringify({ newDoctorId }),
+    });
+    return response;
+  },
+};
+
+// OTP API
+export const otpAPI = {
+  send: async (childId, vaccineId) => {
+    return await apiRequest('/otp/send', {
+      method: 'POST',
+      body: JSON.stringify({ childId, vaccineId }),
+    });
+  },
+
+  verify: async (childId, vaccineId, otp) => {
+    return await apiRequest('/otp/verify', {
+      method: 'POST',
+      body: JSON.stringify({ childId, vaccineId, otp }),
+    });
+  },
+
+  resend: async (childId, vaccineId) => {
+    return await apiRequest('/otp/resend', {
+      method: 'POST',
+      body: JSON.stringify({ childId, vaccineId }),
+    });
+  },
+};
+
+// Users API
+export const usersAPI = {
+  lookupDoctor: async (doctorId) => {
+    const response = await apiRequest(`/users/doctor/${encodeURIComponent(doctorId)}`);
+    return response.data;
+  },
+  deleteCurrentUser: async () => {
+    return await apiRequest('/users/me', {
+      method: 'DELETE',
+    });
+  },
 };
 

@@ -52,7 +52,13 @@ const addChildSchema = z.object({
   // Parent details
   parentName: z.string().min(2, 'Name must be at least 2 characters').max(100),
   parentEmail: z.string().email('Invalid email address'),
-  parentPhone: z.string().min(10, 'Phone must be at least 10 digits').max(15),
+  parentPhone: z.string()
+    .min(10, 'Phone must be at least 10 digits')
+    .max(15)
+    .refine((val) => {
+      const cleaned = val.replace(/[\s\-\(\)]/g, '');
+      return /^(\+?91)?\d{10}$/.test(cleaned);
+    }, 'Enter a valid 10-digit Indian mobile number'),
   parentPassword: z.string().min(6, 'Password must be at least 6 characters'),
   // Child details
   childName: z.string().min(2, 'Name must be at least 2 characters').max(100),
@@ -141,12 +147,21 @@ const AddChildForm: React.FC<AddChildFormProps> = ({ onSuccess }) => {
         id: parentResponse.data.user._id || parentResponse.data.user.id,
       };
 
+      // Normalize phone to +91XXXXXXXXXX
+      const cleanedPhone = data.parentPhone.replace(/[\s\-\(\)]/g, '');
+      const normalizedPhone = cleanedPhone.startsWith('+91')
+        ? cleanedPhone
+        : cleanedPhone.startsWith('91')
+          ? `+${cleanedPhone}`
+          : `+91${cleanedPhone}`;
+
       // Create child with vaccination schedule via API
       const childResponse = await childrenAPI.create({
         name: data.childName,
         dateOfBirth: data.childDob,
         gender: data.childGender,
         parentId: newParent.id,
+        parentPhone: normalizedPhone,
       });
 
       // Normalize child data

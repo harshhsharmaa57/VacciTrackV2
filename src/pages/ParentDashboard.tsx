@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Calendar, CheckCircle, AlertTriangle, Clock, Plus, Baby, Trash2 } from 'lucide-react';
+import { Calendar, CheckCircle, AlertTriangle, Clock, Plus, Baby, Trash2, ArrowRightLeft, Search } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { format, differenceInDays } from 'date-fns';
 import Navbar from '@/components/Navbar';
@@ -8,7 +8,7 @@ import ChildCard from '@/components/ChildCard';
 import StatsCard from '@/components/StatsCard';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
-import { childrenAPI } from '@/lib/api';
+import { childrenAPI, usersAPI } from '@/lib/api';
 import { MASTER_VACCINE_SCHEDULE } from '@/lib/vaccineSchedule';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -22,6 +22,7 @@ interface Child {
   dateOfBirth: Date | string;
   gender: 'male' | 'female';
   abhaId: string;
+  doctorId?: string | { _id: string; name: string; doctorId?: string; hospitalName?: string; specialization?: string };
   schedule: any[];
   createdAt?: Date | string;
 }
@@ -35,6 +36,11 @@ const ParentDashboard: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [childToDelete, setChildToDelete] = useState<Child | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [childToTransfer, setChildToTransfer] = useState<Child | null>(null);
+  const [transferDoctorId, setTransferDoctorId] = useState('');
+  const [doctorPreview, setDoctorPreview] = useState<any | null>(null);
+  const [isLookingUpDoctor, setIsLookingUpDoctor] = useState(false);
+  const [isTransferringDoctor, setIsTransferringDoctor] = useState(false);
   const [newChild, setNewChild] = useState({
     name: '',
     dateOfBirth: '',
@@ -177,6 +183,85 @@ const ParentDashboard: React.FC = () => {
       });
     } finally {
       setIsDeleting(false);
+    }
+  };
+
+  const resetTransferState = () => {
+    setTransferDoctorId('');
+    setDoctorPreview(null);
+    setIsLookingUpDoctor(false);
+    setIsTransferringDoctor(false);
+  };
+
+  const openTransferDialog = (child: Child) => {
+    setChildToTransfer(child);
+    resetTransferState();
+  };
+
+  const handleLookupDoctor = async () => {
+    const normalizedId = transferDoctorId.trim().toUpperCase();
+    if (!/^DOC-[A-Z0-9]{6}$/.test(normalizedId)) {
+      toast.error('Invalid Doctor ID format', {
+        description: 'Use DOC-XXXXXX format (example: DOC-A3K9X2).',
+      });
+      return;
+    }
+
+    try {
+      setIsLookingUpDoctor(true);
+      const doctor = await usersAPI.lookupDoctor(normalizedId);
+      setDoctorPreview(doctor);
+      toast.success('Doctor found', {
+        description: `${doctor.name}${doctor.hospitalName ? ` • ${doctor.hospitalName}` : ''}`,
+      });
+    } catch (error: any) {
+      setDoctorPreview(null);
+      toast.error('Doctor lookup failed', {
+        description: error.message || 'Unable to find this doctor ID.',
+      });
+    } finally {
+      setIsLookingUpDoctor(false);
+    }
+  };
+
+  const handleTransferDoctor = async () => {
+    if (!childToTransfer || !doctorPreview) return;
+    const childId = childToTransfer.id || childToTransfer._id;
+    if (!childId) return;
+
+    try {
+      setIsTransferringDoctor(true);
+      const response = await childrenAPI.transferDoctor(childId, doctorPreview.doctorId);
+      const updatedChildData = response.data;
+      const normalizedChild = {
+        ...updatedChildData,
+        id: updatedChildData._id || updatedChildData.id,
+        dateOfBirth: new Date(updatedChildData.dateOfBirth),
+        schedule: updatedChildData.schedule.map((v: any) => ({
+          ...v,
+          dueDate: new Date(v.dueDate),
+          administeredDate: v.administeredDate ? new Date(v.administeredDate) : undefined,
+        })),
+      };
+
+      setChildren((prev) =>
+        prev.map((child) =>
+          (child.id || child._id) === childId ? normalizedChild : child
+        )
+      );
+
+      toast.success('Doctor transferred successfully', {
+        description: `${childToTransfer.name} is now assigned to Dr. ${doctorPreview.name}.`,
+      });
+
+      setChildToTransfer(null);
+      resetTransferState();
+    } catch (error: any) {
+      toast.error('Transfer failed', {
+        description: error.message || 'Unable to transfer doctor assignment.',
+      });
+    } finally {
+      setIsTransferringDoctor(false);
     }
   };
 
@@ -390,11 +475,31 @@ const ParentDashboard: React.FC = () => {
           ) : (
             <div className="grid md:grid-cols-2 gap-6">
               {children.map((child) => (
-                <div key={child.id} className="relative group">
+                <div key={child.id || child._id} className="relative group">
                   <ChildCard
                     child={child}
-                    onClick={() => navigate(`/child/${child.id}`)}
+                    onClick={() => navigate(`/child/${child.id || child._id}`)}
                   />
+                  <div className="mt-2 px-1 flex items-center justify-between gap-3">
+                    <p className="text-xs text-muted-foreground truncate">
+                      Assigned doctor:{' '}
+                      <span className="font-medium text-foreground">
+                        {typeof child.doctorId === 'object'
+                          ? `${child.doctorId.name}${child.doctorId.doctorId ? ` (${child.doctorId.doctorId})` : ''}`
+                          : 'Not assigned'}
+                      </span>
+                    </p>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openTransferDialog(child);
+                      }}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border text-xs font-medium hover:bg-muted"
+                    >
+                      <ArrowRightLeft className="w-3.5 h-3.5" />
+                      Transfer Doctor
+                    </button>
+                  </div>
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -438,6 +543,92 @@ const ParentDashboard: React.FC = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Transfer Doctor Dialog */}
+      <Dialog
+        open={!!childToTransfer}
+        onOpenChange={(open) => {
+          if (!open) {
+            setChildToTransfer(null);
+            resetTransferState();
+          }
+        }}
+      >
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ArrowRightLeft className="w-5 h-5 text-primary" />
+              Transfer Doctor - {childToTransfer?.name}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 mt-2">
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                New Doctor ID
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={transferDoctorId}
+                  onChange={(e) => {
+                    setTransferDoctorId(e.target.value.toUpperCase());
+                    setDoctorPreview(null);
+                  }}
+                  placeholder="DOC-A3K9X2"
+                  className="flex-1 px-4 py-2.5 rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+                <button
+                  type="button"
+                  onClick={handleLookupDoctor}
+                  disabled={isLookingUpDoctor || !transferDoctorId.trim()}
+                  className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-lg border border-border text-sm font-medium hover:bg-muted disabled:opacity-60"
+                >
+                  <Search className="w-4 h-4" />
+                  {isLookingUpDoctor ? 'Checking...' : 'Preview'}
+                </button>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Format: DOC-XXXXXX
+              </p>
+            </div>
+
+            {doctorPreview && (
+              <div className="rounded-lg border border-border p-4 bg-muted/30">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground mb-2">
+                  Doctor Preview
+                </p>
+                <p className="font-semibold text-foreground">{doctorPreview.name}</p>
+                <p className="text-sm text-muted-foreground">
+                  {doctorPreview.hospitalName || 'Hospital not specified'}
+                </p>
+                <p className="text-xs font-mono mt-1">{doctorPreview.doctorId}</p>
+              </div>
+            )}
+
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setChildToTransfer(null);
+                  resetTransferState();
+                }}
+                className="flex-1 px-4 py-2.5 rounded-lg border border-border text-sm font-medium hover:bg-muted"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleTransferDoctor}
+                disabled={!doctorPreview || isTransferringDoctor}
+                className="flex-1 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 disabled:opacity-60"
+              >
+                {isTransferringDoctor ? 'Transferring...' : 'Confirm Transfer'}
+              </button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

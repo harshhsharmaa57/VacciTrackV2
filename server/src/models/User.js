@@ -1,5 +1,19 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
+
+/**
+ * Generate a unique doctor ID in format DOC-XXXXXX
+ * Uses only unambiguous characters (no O/0/I/1/l)
+ */
+const generateDoctorId = () => {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let id = '';
+  for (let i = 0; i < 6; i++) {
+    id += chars.charAt(crypto.randomInt(0, chars.length));
+  }
+  return `DOC-${id}`;
+};
 
 const userSchema = new mongoose.Schema(
   {
@@ -36,14 +50,36 @@ const userSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    doctorId: {
+      type: String,
+      unique: true,
+      sparse: true, // allows null for non-doctor users
+      uppercase: true,
+      index: true,
+    },
+    specialization: {
+      type: String,
+      trim: true,
+    },
   },
   {
     timestamps: true,
   }
 );
 
-// Hash password before saving
+// Hash password before saving & auto-generate doctorId for doctors
 userSchema.pre('save', async function (next) {
+  // Auto-generate doctorId for new doctors
+  if (this.isNew && this.role === 'doctor' && !this.doctorId) {
+    let id = generateDoctorId();
+    let exists = await mongoose.model('User').findOne({ doctorId: id });
+    while (exists) {
+      id = generateDoctorId();
+      exists = await mongoose.model('User').findOne({ doctorId: id });
+    }
+    this.doctorId = id;
+  }
+
   if (!this.isModified('password')) {
     return next();
   }
@@ -68,5 +104,3 @@ userSchema.methods.toJSON = function () {
 const User = mongoose.model('User', userSchema);
 
 export default User;
-
-

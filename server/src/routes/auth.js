@@ -24,7 +24,7 @@ router.post(
       });
     }
 
-    const { email, password, name, role, phone, hospitalName } = req.body;
+    const { email, password, name, role, phone, hospitalName, specialization } = req.body;
 
     const userExists = await User.findOne({ email });
     if (userExists) {
@@ -41,6 +41,7 @@ router.post(
       role,
       phone,
       hospitalName: role === 'doctor' ? hospitalName : undefined,
+      specialization: role === 'doctor' ? specialization : undefined,
     });
 
     const token = generateToken(user._id);

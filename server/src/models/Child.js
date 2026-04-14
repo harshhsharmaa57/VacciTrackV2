@@ -68,6 +68,22 @@ const childSchema = new mongoose.Schema(
       unique: true,
       index: true,
     },
+    parentPhone: {
+      type: String,
+      trim: true,
+      validate: {
+        validator: function (v) {
+          if (!v) return true; // optional field — safe for existing records
+          return /^\+91\d{10}$/.test(v);
+        },
+        message: 'Phone must be in +91XXXXXXXXXX format',
+      },
+    },
+    doctorId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      index: true,
+    },
     schedule: [scheduledVaccineSchema],
   },
   {
