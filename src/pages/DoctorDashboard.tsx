@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Users, Syringe, CheckCircle, AlertTriangle, Clock, Building2, Pencil, Trash2, Phone } from 'lucide-react';
+import { Search, Users, Syringe, CheckCircle, AlertTriangle, Clock, Building2, Pencil, Trash2, Phone, Bell } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { format } from 'date-fns';
 import Navbar from '@/components/Navbar';
@@ -12,7 +12,7 @@ import AddChildForm from '@/components/AddChildForm';
 import OtpVerificationDialog from '@/components/OtpVerificationDialog';
 import { useAuth } from '@/context/AuthContext';
 import { useLanguage } from '@/context/LanguageContext';
-import { childrenAPI, usersAPI } from '@/lib/api';
+import { childrenAPI, usersAPI, notificationsAPI } from '@/lib/api';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 
@@ -51,6 +51,26 @@ const DoctorDashboard: React.FC = () => {
   // OTP verification state
   const [otpDialogOpen, setOtpDialogOpen] = useState(false);
   const [otpTarget, setOtpTarget] = useState<{ vaccineId: string; vaccineName: string } | null>(null);
+  const [isSendingReminder, setIsSendingReminder] = useState(false);
+
+  const handleSendReminder = async () => {
+    if (!selectedChild) return;
+    try {
+      setIsSendingReminder(true);
+      const childId = selectedChild.id || selectedChild._id;
+      await notificationsAPI.sendDoctorReminder(childId);
+      toast.success('Immunization Reminder Sent!', {
+        description: `Notification & SMS alert dispatched to parent for ${selectedChild.name}.`,
+      });
+    } catch (err: any) {
+      console.error(err);
+      toast.error('Failed to send reminder', {
+        description: err.message || 'Server error',
+      });
+    } finally {
+      setIsSendingReminder(false);
+    }
+  };
 
   // Fetch all children from API
   useEffect(() => {
@@ -520,6 +540,15 @@ const DoctorDashboard: React.FC = () => {
                 {/* Action buttons */}
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <div className="flex flex-wrap gap-3">
+                    <button
+                      type="button"
+                      onClick={handleSendReminder}
+                      disabled={isSendingReminder}
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-sm font-medium transition disabled:opacity-60 shadow-xs"
+                    >
+                      <Bell className="w-4 h-4" />
+                      {isSendingReminder ? 'Sending...' : 'Send Reminder'}
+                    </button>
                     <button
                       type="button"
                       onClick={() => setIsEditing((prev) => !prev)}

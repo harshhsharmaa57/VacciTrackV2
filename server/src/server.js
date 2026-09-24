@@ -12,6 +12,7 @@ import authRoutes from "./routes/auth.js";
 import userRoutes from "./routes/users.js";
 import childRoutes from "./routes/children.js";
 import otpRoutes from "./routes/otp.js";
+import notificationRoutes from "./routes/notifications.js";
 import { assignAllChildrenToSampleDoctor } from "./utils/assignSampleDoctor.js";
 
 dotenv.config();
@@ -104,6 +105,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/children", childRoutes);
 app.use("/api/otp", otpRoutes);
+app.use("/api/notifications", notificationRoutes);
 
 app.use((req, res) => {
   res.status(404).json({

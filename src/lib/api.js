@@ -215,3 +215,26 @@ export const usersAPI = {
   },
 };
 
+// Notifications API
+export const notificationsAPI = {
+  getAll: async () => {
+    return await apiRequest('/notifications');
+  },
+  markAsRead: async (id) => {
+    return await apiRequest(`/notifications/${id}/read`, {
+      method: 'PATCH',
+    });
+  },
+  markAllAsRead: async () => {
+    return await apiRequest('/notifications/read-all', {
+      method: 'PATCH',
+    });
+  },
+  sendDoctorReminder: async (childId, message) => {
+    return await apiRequest('/notifications/send-reminder', {
+      method: 'POST',
+      body: JSON.stringify({ childId, message }),
+    });
+  },
+};
+
