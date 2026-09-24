@@ -10,6 +10,7 @@ import Login from "./pages/Login";
 import ParentDashboard from "./pages/ParentDashboard";
 import DoctorDashboard from "./pages/DoctorDashboard";
 import ChildDetail from "./pages/ChildDetail";
+import VerifyCertificate from "./pages/VerifyCertificate";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -86,6 +87,7 @@ const AppRoutes = () => (
         </ProtectedRoute>
       }
     />
+    <Route path="/verify/:id" element={<VerifyCertificate />} />
     <Route path="*" element={<NotFound />} />
   </Routes>
 );

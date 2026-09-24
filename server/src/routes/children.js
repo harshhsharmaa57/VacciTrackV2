@@ -441,6 +441,61 @@ router.patch(
   })
 );
 
+// @route   GET /api/children/:id/certificate-verify
+// @desc    Public verification of immunization certificate
+// @access  Public
+router.get('/:id/certificate-verify', asyncHandler(async (req, res) => {
+  const child = await Child.findById(req.params.id)
+    .populate('parentId', 'name')
+    .populate('doctorId', 'name doctorId hospitalName specialization');
+
+  if (!child) {
+    return res.status(404).json({
+      success: false,
+      error: 'Certificate not found or invalid record ID',
+    });
+  }
+
+  // Mask ABHA ID for privacy
+  const cleanAbha = child.abhaId ? child.abhaId.replace(/\s+/g, '') : '';
+  const maskedAbha = cleanAbha.length >= 14
+    ? `${cleanAbha.substring(0, 4)}-XXXX-XXXX-${cleanAbha.substring(10)}`
+    : (cleanAbha ? `${cleanAbha.substring(0, 4)}-XXXX-${cleanAbha.slice(-4)}` : 'N/A');
+
+  const completedVaccines = (child.schedule || [])
+    .filter(v => v.status === 'COMPLETED')
+    .map(v => ({
+      vaccineId: v.vaccineId,
+      name: v.name,
+      shortName: v.shortName,
+      doseNumber: v.doseNumber,
+      administeredDate: v.administeredDate,
+      phase: v.phase,
+    }));
+
+  res.json({
+    success: true,
+    data: {
+      childId: child._id,
+      name: child.name,
+      gender: child.gender,
+      dateOfBirth: child.dateOfBirth,
+      maskedAbhaId: maskedAbha,
+      guardianName: child.parentId ? child.parentId.name : 'Registered Guardian',
+      doctor: child.doctorId ? {
+        name: child.doctorId.name,
+        doctorId: child.doctorId.doctorId,
+        hospitalName: child.doctorId.hospitalName,
+      } : null,
+      totalVaccines: child.schedule ? child.schedule.length : 0,
+      completedCount: completedVaccines.length,
+      completedVaccines,
+      verifiedAt: new Date(),
+      status: completedVaccines.length === (child.schedule ? child.schedule.length : 0) ? 'Fully Immunized' : 'Partially Immunized',
+    }
+  });
+}));
+
 export default router;
 
 

@@ -10,6 +10,8 @@ import { useLanguage } from '@/context/LanguageContext';
 import { childrenAPI } from '@/lib/api';
 import { MASTER_VACCINE_SCHEDULE } from '@/lib/vaccineSchedule';
 import { cn } from '@/lib/utils';
+import CertificateModal from '@/components/CertificateModal';
+import { toast } from 'sonner';
 
 interface Child {
   _id?: string;
@@ -27,6 +29,26 @@ const ChildDetail: React.FC = () => {
   const { t } = useLanguage();
   const [child, setChild] = useState<Child | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isCertModalOpen, setIsCertModalOpen] = useState(false);
+
+  const handleShare = async () => {
+    if (!child) return;
+    const verifyUrl = `${window.location.origin}/verify/${child.id || child._id}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `${child.name} - VacciTrack Immunization Certificate`,
+          text: `View and verify ${child.name}'s NIS 2025 immunization record on VacciTrack.`,
+          url: verifyUrl,
+        });
+        return;
+      } catch (e) {
+        // Fallback to clipboard
+      }
+    }
+    await navigator.clipboard.writeText(verifyUrl);
+    toast.success('Verification link copied to clipboard!');
+  };
 
   useEffect(() => {
     const fetchChild = async () => {
@@ -143,11 +165,17 @@ const ChildDetail: React.FC = () => {
 
               {/* Action Buttons */}
               <div className="flex gap-3 mt-6">
-                <button className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border text-sm font-medium hover:bg-muted transition-colors">
+                <button
+                  onClick={() => setIsCertModalOpen(true)}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg border border-primary/30 bg-primary/10 text-primary text-sm font-medium hover:bg-primary/20 transition-all shadow-xs"
+                >
                   <Download className="w-4 h-4" />
                   Download Certificate
                 </button>
-                <button className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border text-sm font-medium hover:bg-muted transition-colors">
+                <button
+                  onClick={handleShare}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border text-sm font-medium hover:bg-muted transition-colors"
+                >
                   <Share2 className="w-4 h-4" />
                   Share
                 </button>
@@ -210,6 +238,21 @@ const ChildDetail: React.FC = () => {
           <VaccineTimeline schedule={child.schedule} />
         </motion.div>
       </main>
+
+      {child && (
+        <CertificateModal
+          isOpen={isCertModalOpen}
+          onClose={() => setIsCertModalOpen(false)}
+          child={{
+            id: child.id || child._id || '',
+            name: child.name,
+            gender: child.gender,
+            dateOfBirth: child.dateOfBirth,
+            abhaId: child.abhaId,
+            schedule: child.schedule,
+          }}
+        />
+      )}
     </div>
   );
 };

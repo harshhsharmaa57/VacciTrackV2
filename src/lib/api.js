@@ -171,6 +171,11 @@ export const childrenAPI = {
     });
     return response;
   },
+
+  verifyCertificate: async (childId) => {
+    const response = await apiRequest(`/children/${childId}/certificate-verify`);
+    return response.data;
+  },
 };
 
 // OTP API
