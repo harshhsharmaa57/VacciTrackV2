@@ -7,6 +7,7 @@ import Otp from '../models/Otp.js';
 import Child from '../models/Child.js';
 import User from '../models/User.js';
 import { generateOtp, sendOtp, maskPhone } from '../utils/smsService.js';
+import { sendOtpEmail, sendVaccineReminderEmail, testEmailService } from '../utils/emailService.js';
 
 const router = express.Router();
 
@@ -148,14 +149,25 @@ router.post(
       });
     }
 
+    // 8. Also send OTP to parent's Gmail if available
+    let parentEmail = req.body.email || null;
+    if (!parentEmail && child.parentId) {
+      const parentUser = await User.findById(child.parentId);
+      if (parentUser?.email) parentEmail = parentUser.email;
+    }
+    if (parentEmail) {
+      await sendOtpEmail(parentEmail, otp, child.name);
+    }
+
     console.log(
-      `[OTP] Sent for child=${childId} vaccine=${vaccineId} by doctor=${req.user._id}`
+      `[OTP] Sent for child=${childId} vaccine=${vaccineId} to phone=${maskPhone(phone)} email=${parentEmail || 'none'}`
     );
 
     res.json({
       success: true,
-      message: 'OTP sent successfully',
+      message: parentEmail ? 'OTP sent successfully to registered phone and Gmail' : 'OTP sent successfully',
       phoneLastFour: maskPhone(phone),
+      emailSentTo: parentEmail || null,
       expiresIn: OTP_EXPIRY_MINUTES * 60, // seconds
       // Include OTP in response when using console provider (no real SMS)
       ...((process.env.SMS_PROVIDER || 'console') === 'console' && { devOtp: otp }),
@@ -407,6 +419,44 @@ router.post(
       expiresIn: OTP_EXPIRY_MINUTES * 60,
       ...((process.env.SMS_PROVIDER || 'console') === 'console' && { devOtp: otp }),
     });
+  })
+);
+
+/**
+ * POST /api/otp/send-reminder-email
+ * Send vaccination reminder to parent's Gmail matching official NIS 2025 format
+ */
+router.post(
+  '/send-reminder-email',
+  asyncHandler(async (req, res) => {
+    const { email, childName, vaccineName, dueDate, daysRemaining } = req.body;
+    const targetEmail = email || process.env.GMAIL_USER || 'ayushr94150@gmail.com';
+
+    const result = await sendVaccineReminderEmail(targetEmail, {
+      childName: childName || 'Ayush Pandey',
+      vaccineName: vaccineName || 'Oral Polio Vaccine - Dose 1',
+      dueDate: dueDate || '12 Oct 2026',
+      daysRemaining: daysRemaining || 15,
+    });
+
+    res.json({
+      success: true,
+      message: `Vaccine reminder sent successfully to ${targetEmail}`,
+      details: result,
+    });
+  })
+);
+
+/**
+ * POST /api/otp/test-email
+ * Test Gmail / SMTP setup and send a sample verification email
+ */
+router.post(
+  '/test-email',
+  asyncHandler(async (req, res) => {
+    const { email } = req.body;
+    const result = await testEmailService(email);
+    res.json(result);
   })
 );
 

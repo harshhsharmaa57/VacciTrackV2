@@ -11,7 +11,9 @@ import ParentDashboard from "./pages/ParentDashboard";
 import DoctorDashboard from "./pages/DoctorDashboard";
 import ChildDetail from "./pages/ChildDetail";
 import VerifyCertificate from "./pages/VerifyCertificate";
+import VaccinationCenters from "./pages/VaccinationCenters";
 import NotFound from "./pages/NotFound";
+import VaxBotChat from "./components/VaxBotChat";
 
 const queryClient = new QueryClient();
 
@@ -88,6 +90,7 @@ const AppRoutes = () => (
       }
     />
     <Route path="/verify/:id" element={<VerifyCertificate />} />
+    <Route path="/centers" element={<VaccinationCenters />} />
     <Route path="*" element={<NotFound />} />
   </Routes>
 );
@@ -102,6 +105,7 @@ const App = () => (
             <Sonner />
             <BrowserRouter>
               <AppRoutes />
+              <VaxBotChat />
             </BrowserRouter>
           </TooltipProvider>
         </LanguageProvider>

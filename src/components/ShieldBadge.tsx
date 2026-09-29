@@ -8,105 +8,100 @@ interface ShieldBadgeProps {
   completedCount: number;
   totalCount: number;
   size?: 'sm' | 'md' | 'lg';
+  showContainer?: boolean;
 }
 
-const ShieldBadge: React.FC<ShieldBadgeProps> = ({ completedCount, totalCount, size = 'md' }) => {
-  const { level, title, progress } = calculateShieldLevel(completedCount);
+const ShieldBadge: React.FC<ShieldBadgeProps> = ({ 
+  completedCount, 
+  totalCount, 
+  size = 'md',
+  showContainer = false 
+}) => {
+  const { level, title } = calculateShieldLevel(completedCount);
 
-  const sizeClasses = {
-    sm: 'w-16 h-16',
-    md: 'w-24 h-24',
-    lg: 'w-32 h-32',
-  };
-
-  const textSizes = {
-    sm: 'text-xs',
-    md: 'text-sm',
-    lg: 'text-base',
-  };
-
-  const levelColors = [
-    'from-gray-400 to-gray-500',
-    'from-amber-400 to-amber-600',
-    'from-emerald-400 to-emerald-600',
-    'from-blue-400 to-blue-600',
-    'from-purple-400 to-purple-600',
-    'from-primary to-secondary',
+  const levelGradients = [
+    'from-slate-500 to-slate-700 text-slate-300 border-slate-500/30',
+    'from-amber-500 to-orange-600 text-amber-300 border-amber-500/30',
+    'from-emerald-500 to-teal-600 text-emerald-300 border-emerald-500/30',
+    'from-blue-500 to-cyan-600 text-blue-300 border-blue-500/30',
+    'from-purple-500 to-indigo-600 text-purple-300 border-purple-500/30',
+    'from-emerald-400 via-teal-500 to-cyan-500 text-teal-200 border-teal-400/40',
   ];
 
-  return (
-    <div className="flex flex-col items-center gap-2">
+  const levelGlows = [
+    'shadow-slate-500/10',
+    'shadow-amber-500/20',
+    'shadow-emerald-500/25',
+    'shadow-blue-500/25',
+    'shadow-purple-500/25',
+    'shadow-teal-400/30',
+  ];
+
+  const badgeContent = (
+    <div className="flex flex-col items-center justify-center text-center w-full">
+      {/* Shield Icon Container with Level Glow */}
       <motion.div
-        initial={{ scale: 0 }}
-        animate={{ scale: 1 }}
-        transition={{ type: 'spring', stiffness: 200, damping: 15 }}
-        className={cn('relative', sizeClasses[size])}
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ type: 'spring', stiffness: 260, damping: 20 }}
+        className="relative mb-2.5 flex items-center justify-center"
       >
-        {/* Shield Background */}
         <div
           className={cn(
-            'absolute inset-0 rounded-full bg-gradient-to-br shadow-lg',
-            levelColors[level]
+            'w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br flex items-center justify-center shadow-lg border relative transition-transform hover:scale-105',
+            levelGradients[level],
+            levelGlows[level]
           )}
-        />
-
-        {/* Shield Icon */}
-        <div className="absolute inset-0 flex items-center justify-center">
-          <Shield className={cn(
-            'text-primary-foreground drop-shadow-md',
-            size === 'sm' && 'w-8 h-8',
-            size === 'md' && 'w-12 h-12',
-            size === 'lg' && 'w-16 h-16'
-          )} />
+        >
+          <Shield className="w-7 h-7 sm:w-8 sm:h-8 text-white drop-shadow-md" />
         </div>
 
-        {/* Level Stars */}
-        <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 flex gap-0.5">
+        {/* Floating Star Level Chip */}
+        <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full bg-card/95 border border-border/80 shadow-md flex items-center gap-0.5 whitespace-nowrap z-10">
+          <Star className="w-2.5 h-2.5 text-amber-400 fill-amber-400 shrink-0" />
+          <span className="text-[10px] font-extrabold text-foreground font-mono">
+            {level === 0 ? '0/5' : `Lvl ${level}`}
+          </span>
+        </div>
+      </motion.div>
+
+      {/* Title & Stars Display */}
+      <div className="mt-1 space-y-0.5 w-full">
+        <p className="font-display font-extrabold text-xs sm:text-sm text-foreground tracking-tight truncate">
+          {title}
+        </p>
+
+        {/* 5-Star Row */}
+        <div className="flex items-center justify-center gap-1 my-1">
           {Array.from({ length: 5 }).map((_, i) => (
             <Star
               key={i}
               className={cn(
-                'drop-shadow',
-                size === 'sm' && 'w-2.5 h-2.5',
-                size === 'md' && 'w-3 h-3',
-                size === 'lg' && 'w-4 h-4',
-                i < level ? 'text-warning fill-warning' : 'text-muted-foreground/30'
+                'w-2.5 h-2.5 transition-all',
+                i < level
+                  ? 'text-amber-400 fill-amber-400 drop-shadow-2xs'
+                  : 'text-muted-foreground/25'
               )}
             />
           ))}
         </div>
 
-        {/* Glow Effect */}
-        {level >= 4 && (
-          <motion.div
-            animate={{ opacity: [0.5, 1, 0.5] }}
-            transition={{ duration: 2, repeat: Infinity }}
-            className="absolute inset-0 rounded-full bg-gradient-to-br from-primary/20 to-secondary/20 blur-xl"
-          />
-        )}
-      </motion.div>
-
-      {/* Title and Progress */}
-      <div className="text-center">
-        <p className={cn('font-display font-semibold text-foreground', textSizes[size])}>
-          {title}
+        <p className="text-[10px] sm:text-[11px] font-medium text-muted-foreground">
+          {completedCount} of {totalCount} vaccines
         </p>
-        <p className="text-xs text-muted-foreground">
-          Level {level} • {completedCount}/{totalCount} vaccines
-        </p>
-
-        {/* Progress Bar */}
-        <div className="mt-2 w-full h-1.5 bg-muted rounded-full overflow-hidden">
-          <motion.div
-            initial={{ width: 0 }}
-            animate={{ width: `${progress}%` }}
-            transition={{ duration: 1, ease: 'easeOut' }}
-            className="h-full bg-gradient-hero rounded-full"
-          />
-        </div>
       </div>
     </div>
   );
+
+  if (showContainer) {
+    return (
+      <div className="p-3.5 rounded-2xl bg-muted/40 border border-border/60 backdrop-blur-md flex items-center justify-center shadow-2xs h-full w-full">
+        {badgeContent}
+      </div>
+    );
+  }
+
+  return badgeContent;
 };
 
 export default ShieldBadge;
