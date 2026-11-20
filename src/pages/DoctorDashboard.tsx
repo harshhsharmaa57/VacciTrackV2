@@ -355,25 +355,34 @@ const DoctorDashboard: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background relative overflow-x-hidden selection:bg-teal-500/20">
+      {/* Ambient Glowing Gradients & Dot Grid Background */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[700px] h-[500px] bg-gradient-to-tr from-cyan-500/15 via-teal-500/15 to-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-32 left-10 w-[450px] h-[350px] bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -top-32 right-10 w-[450px] h-[350px] bg-teal-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute inset-0 bg-[radial-gradient(#06b6d4_1px,transparent_1px)] [background-size:28px_28px] opacity-[0.07] dark:opacity-[0.14]" />
+      </div>
+
       <Navbar />
       <ConfettiExplosion trigger={showConfetti} onComplete={() => setShowConfetti(false)} />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 relative z-10">
         {/* Welcome Header */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
           className="mb-8"
         >
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-3">
-              <h1 className="font-display font-bold text-3xl text-foreground">
-                Healthcare Provider Portal
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
+            <div>
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 border border-cyan-500/25 mb-2 shadow-2xs">
+                <span className="w-1.5 h-1.5 rounded-full bg-cyan-500 animate-pulse" />
+                <span>Authorized Pediatric Healthcare Provider Session</span>
+              </div>
+              <h1 className="font-display font-extrabold text-2xl sm:text-3xl lg:text-4xl text-foreground tracking-tight">
+                Doctor & Clinic Portal
               </h1>
-              <span className="px-3 py-1 rounded-full bg-secondary/10 text-secondary text-sm font-medium">
-                Doctor
-              </span>
             </div>
             <div className="flex items-center gap-2">
               <button

@@ -22,7 +22,7 @@ const seedDatabase = async () => {
     const parent1 = await User.create({
       email: 'parent@demo.com',
       password: 'password123',
-      name: 'Priya Sharma',
+      name: 'Ananya Sharma',
       role: 'parent',
       phone: '+91 98765 43210',
     });
